@@ -1,0 +1,43 @@
+
+br-pbuilder
+Parallel builder for Buildroot that uses an acyclic graph
+
+The graph is organized according to the packages dependencies
+
+The graph is created in levels, the graph's root is a package that does not have
+any dependency on any package. The second level contains packages whose only
+dependency is the graph's root that is the previous level; the third level
+contains packages whose dependencies are the packages in the second level and
+the graph's root; and so on.
+Each package may have one or more dependencies and all of them must be in higher
+levels.
+
+================================================================================
+Building
+================================================================================
+
+./autogen.sh
+./configure
+make
+
+================================================================================
+How to use it
+================================================================================
+
+
+================================================================================
+TODO
+================================================================================
+
+
+================================================================================
+Known bugs
+================================================================================
+
+A lot. 
+
+================================================================================
+Feedback and bug reports
+================================================================================
+
+
