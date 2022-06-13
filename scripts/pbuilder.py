@@ -17,26 +17,55 @@ def set_log_level(log_level):
         print("Setting log level to debugging")
 
 
-def pbuilder_exec(pbuilder_bin):
-    logging.debug("Executing %s", pbuilder_bin)
+def pbuilder_exec(pbuilder_bin, pbuilder_deps_file, log_level):
+    if pbuilder_bin is None or pbuilder_deps_file is None:
+        logging.debug("NULL parameters received!")
+        return 1
+
+    try:
+        if log_level is None:
+            subprocess.check_output([pbuilder_bin, "-f", pbuilder_deps_file])
+        else:
+            #logging.debug("Executing %s -f %s -l %d", pbuilder_bin, pbuilder_deps_file, log_level)
+            #subprocess.check_output([pbuilder_bin, '-f', pbuilder_deps_file, '-l', str(log_level)])
+            cmd = pbuilder_bin + " -f " + pbuilder_deps_file + " -l " + str(log_level)
+            #print("cmd: ", cmd)
+
+            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            while True:
+                output = p.stdout.readline()
+                if output == '' and process.poll() is not None:
+                    break;
+                if output:
+                    print(output.strip())
+            rc = process.poll()
+            return rc
+
+    except subprocess.CalledProcessError as err:
+        logging.debug("Return code: %d", err.returncode)
+        logging.debug("Output: %s", err.output)
+        return err.returncode
 
     return 0
 
 
-def compile_builder(pbuilder_path):
+def pbuilder_compile(pbuilder_path):
     logging.debug("Building in %s", pbuilder_path)
 
     os.chdir(pbuilder_path)
     try:
-        logging.debug("Executing autogen.sh")
+        logging.debug("Executing ./autogen.sh...")
         subprocess.check_output(["./autogen.sh"])
+
+        logging.debug("Executing ./configure...")
         subprocess.check_output(["./configure"])
+
+        logging.debug("Building pbuilder...")
         subprocess.check_output(["make"])
-        subprocess.check_output(["ls", "hola"])
     except subprocess.CalledProcessError as err:
         logging.debug("Return code: %d", err.returncode)
         logging.debug("Output: %s", err.output)
-        return err.output
+        return err.returncode
 
     return 0
 
@@ -86,20 +115,24 @@ def main():
 
     set_log_level(log_level)
 
+    os.environ['TOPDIR'] = br2_topdir
+    os.environ['CONFIG_DIR'] = br2_config_path
+
+    print("TOPDIR: ", br2_topdir)
+    print("CONFIG_DIR: ", br2_config_path)
+
     if os.path.isfile(br2_config_file) is False:
         logging.error("Failed to find BR config file: %s", br2_config_file)
         sys.exit(1)
 
     if os.path.isfile(pbuilder_bin) is False or os.access(pbuilder_bin, os.X_OK) is False:
-        res = compile_builder(pbuilder_path)
-        if res != 0:
+        if pbuilder_compile(pbuilder_path) != 0:
             logging.error("Failed to build pbuilder. Exiting!")
             sys.exit(1)
 
     if os.path.isfile(pbuilder_deps_file) is False:
         logging.debug("Dependencies file not found...")
-        res = generate_deps(pbuilder_deps_file)
-        if res != 0:
+        if generate_deps(pbuilder_deps_file) != 0:
             logging.error("Failed to calculate dependencies. Exiting!")
             sys.exit(1)
     else:
@@ -111,8 +144,7 @@ def main():
 
         logging.debug("No need to update the dependencies file")
 
-    res = pbuilder_exec(pbuilder_bin)
-    if res != 0:
+    if pbuilder_exec(pbuilder_bin, pbuilder_deps_file, log_level) != 0:
         logging.error("Failed to execute pbuilder. Exiting!")
         sys.exit(1)
 
