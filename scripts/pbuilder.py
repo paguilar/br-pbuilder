@@ -29,7 +29,7 @@ def pbuilder_exec(pbuilder_bin, pbuilder_deps_file, log_level):
             #logging.debug("Executing %s -f %s -l %d", pbuilder_bin, pbuilder_deps_file, log_level)
             #subprocess.check_output([pbuilder_bin, '-f', pbuilder_deps_file, '-l', str(log_level)])
             cmd = pbuilder_bin + " -f " + pbuilder_deps_file + " -l " + str(log_level)
-            #print("cmd: ", cmd)
+            logging.debug("Executing: %s", cmd)
 
             p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             while True:
@@ -37,7 +37,7 @@ def pbuilder_exec(pbuilder_bin, pbuilder_deps_file, log_level):
                 if output == '' and process.poll() is not None:
                     break;
                 if output:
-                    print(output.strip())
+                    print(output.strip().decode())
             rc = process.poll()
             return rc
 
@@ -82,7 +82,8 @@ def generate_deps(pbuilder_deps_file):
         #pkg_list = json.loads(p.communicate()[0])
     pkg_list = json.loads(subprocess.check_output(cmd))
 
-    with open(".pbuilder.deps", 'w') as f:
+    #with open(".pbuilder.deps", 'w') as f:
+    with open(pbuilder_deps_file, 'w') as f:
         for pkg in pkg_list:
             pkg_name = pkg_list[pkg].get("name")
             if not pkg_name:
@@ -102,24 +103,23 @@ def main():
     parser = argparse.ArgumentParser("pbuilder.py")
     parser.add_argument("-l", "--loglevel", help="Enable/Disable log level. Default: 0 (disabled)", type=int)
     parser.add_argument("br2_config", help="BR2_CONFIG: The path to the Buildroot .config file", type=str)
+    parser.add_argument("config_dir", help="CONFIG_DIR: The top-level Buildroot Makefile to use", type=str)
     parser.add_argument("br2_topdir", help="TOPDIR: The path to Buildroot's top dir", type=str)
     parser.add_argument("pbuilder_path", help="Parallel graph builder sources path", type=str)
     args = parser.parse_args()
     log_level = args.loglevel
-    br2_config_path = args.br2_config
-    br2_config_file = br2_config_path
+    br2_config_file = args.br2_config
+    config_dir = args.config_dir
     br2_topdir = args.br2_topdir
     pbuilder_path = args.pbuilder_path
     pbuilder_bin = pbuilder_path + "/src/pbuilder"
-    pbuilder_deps_file = br2_topdir + "/.pbuilder.deps"
+    pbuilder_deps_file = config_dir + "/.pbuilder.deps"
 
     set_log_level(log_level)
 
     os.environ['TOPDIR'] = br2_topdir
-    os.environ['CONFIG_DIR'] = br2_config_path
 
     print("TOPDIR: ", br2_topdir)
-    print("CONFIG_DIR: ", br2_config_path)
 
     if os.path.isfile(br2_config_file) is False:
         logging.error("Failed to find BR config file: %s", br2_config_file)
