@@ -40,11 +40,11 @@ void reset_buff(gchar *buff, guint size)
 void pg_log(GPLogType log_type, gchar *fmt, ...) 
 {
     va_list ap; 
-    gchar buff[BUFF_1024];
+    gchar buff[BUFF_1K];
 
     if (fmt) {
         va_start(ap, fmt);
-        g_vsnprintf(buff, BUFF_1024, fmt, ap);
+        g_vsnprintf(buff, BUFF_1K, fmt, ap);
         va_end(ap);
         switch (log_type) {
             case GP_INFO:

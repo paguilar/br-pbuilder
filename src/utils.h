@@ -26,13 +26,23 @@ extern gint    cpu_num;            /**< Max number of CPU used to build */
 #define GPBUILD_NAME    "GPBuild"
 #define GPBUILD_DESC    "Utilty that builds Buildroot packages following a graph-like pattern: make gpbuild"
 
-#define BUFF_1024       1024
-#define BUFF_4096       4096
+#define BUFF_1K         1024
+#define BUFF_4K         4096
+#define BUFF_8K         8192
 
 #define DBG_ALL         "all"
 #define DBG_CREATE      "creation"
 #define DBG_EXEC        "execution"
 #define DBG_NONE        "none"
+
+#define C_NORMAL        "\x1B[0m"
+#define C_RED           "\x1B[31m"
+#define C_GREEN         "\x1B[32m"
+#define C_YELLOW        "\x1B[33m"
+#define C_BLUE          "\x1B[34m"
+#define C_MAGENT        "\x1B[35m"
+#define C_CYAN          "\x1B[36m"
+#define C_WHITE         "\x1B[37m"
 
 /**
  * Return types
