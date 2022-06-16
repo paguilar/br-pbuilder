@@ -19,6 +19,7 @@
 
 #include "graph_create.h"
 
+#if 0
 static gint search_dep_in_br_pkg_list(gconstpointer data, gconstpointer user_data)
 {
     const GString *pkg_name = data;
@@ -40,6 +41,7 @@ static gint search_dep_in_br_pkg_list(gconstpointer data, gconstpointer user_dat
 
     return 1;
 }
+#endif
 
 void pg_node_free(gpointer data)
 {
@@ -169,7 +171,7 @@ GPResult pg_node_calc_prio(GPNode parent)
     if (!parent)
         return GP_FAIL;
 
-    printf("%s(): Processing '%s'\n", __func__, parent->name->str);
+    pg_log(3, DBG_CREATE, "%s(): Processing '%s'\n", __func__, parent->name->str);
 
     g_list_foreach(parent->childs, pg_child_calc_prio, parent);
 
@@ -223,7 +225,7 @@ static GPResult pg_graph_calc_nodes_priority(GList *graph)
             if (node->priority >= prio) {
                 if (strcmp(node->name->str, "uclibc")) {
                     node->priority++;
-                    printf("Recalculating '%s' priority to %d\n", node->name->str, node->priority);
+                    pg_log(2, DBG_CREATE, "Recalculating '%s' priority to %d\n", node->name->str, node->priority);
                 }
             }
         }
@@ -364,7 +366,7 @@ static GList * pg_node_create(GPMain pg, GList *graph, gchar *node_name, gchar *
 
 static GPResult pg_graph_create(GPMain pg)
 {
-    char            line[BUFF_4096];
+    char            line[BUFF_4K];
     FILE            *fd;
     GList           *graph = NULL;
 
@@ -381,9 +383,9 @@ static GPResult pg_graph_create(GPMain pg)
         return GP_FAIL;
     }
 
-    memset(line, 0, BUFF_4096);
+    memset(line, 0, BUFF_4K);
 
-    while (fgets(line, BUFF_4096, fd)) {
+    while (fgets(line, BUFF_4K, fd)) {
         gchar   **node_name,
                 **parents_str,
                 **p;
@@ -394,6 +396,8 @@ static GPResult pg_graph_create(GPMain pg)
             continue;
 
         node_name = g_strsplit(line, ":", 2);
+        /* FIXME: if (node_name == NULL)*/
+
         g_strchomp(*node_name);
 
 #if 0

@@ -1,6 +1,9 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <errno.h>
 #include <glib-2.0/glib.h>
 
 #include "graph_create.h"
@@ -96,7 +99,7 @@ gshort pg_th_get_avail_thread(GPMain pg)
 
     for (i = 0; i < pg->cpu_num; i++) {
         if (*(pg->th_pool + i) == 0) {
-            printf("Position free: %d\n", i);
+            pg_log(2, DBG_EXEC, "Position free: %d", i);
             return i;
         }
     }
@@ -132,7 +135,7 @@ GPResult pg_th_remove_from_pool(GPMain pg, pthread_t *tid)
     for (i = 0; i < pg->cpu_num; i++) {
         /*printf("Comparing %lu - %lu\n", *(pg->th_pool + i), *tid);*/
         if (*(pg->th_pool + i) == *tid) {
-            printf("Freeing th %lu at position %d\n", *tid, i);
+            pg_debug(2, DBG_EXEC, "%sFreeing thread at position %d\n", C_GREEN, i);
             *(pg->th_pool + i) = 0;
             return GP_OK;
         }
@@ -159,10 +162,16 @@ gpointer pg_node_build(gpointer data)
     pthread_t   tid;
     GPNodeBuild node_building = data;
     GPNode      node;
-    GString     *cmd;
+    GString     *cmd,
+                *logs;
     gulong      elapsed_usecs = 0;
-    gint        ret;
+    /*gint        ret;*/
     gchar       *configdir;
+    gchar       path[BUFF_8K];
+    FILE        *fp = NULL,
+                *flog = NULL;
+    struct stat sb;
+    gint        have_logs = 0;
 
     if (!node_building)
         return NULL;
@@ -185,31 +194,59 @@ gpointer pg_node_build(gpointer data)
     pg_th_add_to_pool(node_building->pg, &tid, node_building->avail_pos);
 
     /* Exec system() with make? */
-    printf("Thread %lu at position %d is building '%s'\n", tid, node_building->avail_pos, node->name->str);
+    printf("%sThread at position %d is building '%s'\n", C_GREEN, node_building->avail_pos, node->name->str);
 
     cmd = g_string_new(NULL);
     /*g_string_printf(cmd, "make %s 1>/dev/null 2>/dev/null", node->name->str);*/
-    g_string_printf(cmd, "%s/brmake %s", configdir, node->name->str);
-
-#if 0
-    if (!strcmp(node->name->str, "uclibc") || !strcmp(node->name->str, "rootfs-common")) {
-        /*g_string_printf(cmd, "./brmake %s", node->name->str);*/
-        sleep(60);
-    }
-#endif
-
-    /* TODO: Redirect output to a file: br_pgbuilder.log */
+    g_string_printf(cmd, "make %s 2>&1", node->name->str);
+    /*g_string_printf(cmd, "%s/brmake %s", configdir, node->name->str);*/
 
     node->timer = g_timer_new();
 
-    ret = system(cmd->str);
-    if (ret != 0)
+#if 1
+    logs = g_string_new("pbuilder_logs");
+
+    if ((stat(logs->str, &sb) == 0) && S_ISDIR(sb.st_mode))
+        have_logs = 1;
+    else
+        if (mkdir(logs->str, S_IRWXU) != 0)
+            pg_log(LOG_DEBUG, "%s(): mkdir(): %s: %s", __func__, logs->str, strerror(errno));
+
+    g_string_printf(logs, "pbuilder_logs/%s.log", node->name->str);
+    if ((flog = fopen(logs->str, "a")) != NULL)
+        have_logs = 1;
+    else
+        pg_log(LOG_ERR, "%s(): fopen(): %s: %s", __func__, logs->str, strerror(errno));
+
+#endif
+
+    fp = popen(cmd->str, "r");
+    if (fp == NULL)
         pg_log(LOG_ERR, "%s(): Error while building '%s'", __func__, node->name->str);
+    else {
+        while (fgets(path, sizeof(path), fp) != NULL) {
+            if (have_logs)
+                fwrite(path, sizeof(char), strlen(path), flog);
+            if (!strncmp(path, "\E[7m>>>", 7))
+                printf("%s", path);
+        }
+
+        fclose(fp);
+    }
+
+    if (have_logs)
+        fclose(flog);
+
+    g_string_free(logs, TRUE);
+
+    /*ret = system(cmd->str);*/
+    /*if (ret != 0)*/
+    /*pg_log(LOG_ERR, "%s(): Error while building '%s'", __func__, node->name->str);*/
 
     g_timer_stop(node->timer);
     node->elapsed_secs = g_timer_elapsed(node->timer, &elapsed_usecs);
 
-    printf("Package '%s' built in %f secs\n", node->name->str, node->elapsed_secs);
+    printf("%sPackage '%s' built in %f secs\n", C_GREEN, node->name->str, node->elapsed_secs);
     g_timer_destroy(node->timer);
 
     g_string_free(cmd, TRUE);
@@ -223,10 +260,10 @@ gpointer pg_node_build(gpointer data)
 
     node->status = GP_STATUS_DONE;
 
-    if (ret != 0) {
-        pg_log(LOG_ERR, "%s(): Exiting!", __func__);
-        _exit(EXIT_FAILURE);
-    }
+    /*if (ret != 0) {*/
+    /*pg_log(LOG_ERR, "%s(): Exiting!", __func__);*/
+    /*_exit(EXIT_FAILURE);*/
+    /*}*/
 
     return NULL;
 }
@@ -260,15 +297,15 @@ GPResult pbg_graph_exec(GPMain pg)
     pg->timer = g_timer_new();
 
     for (i = 1; i <= prio_num; i++) {
-        pg_debug(1, DBG_ALL, "========== Processing packages with priority %d...\n", i);
+        printf("%s========== Processing packages with priority %d...\n", C_RED, i);
         for (list = pg->graph; list != NULL; list = list->next) {
             node = list->data;
             if (node->priority == i) {
-                printf("Processing '%s' (%d)\n", node->name->str, node->priority);
+                printf("%sProcessing '%s' (%d)\n", C_GREEN, node->name->str, node->priority);
 
                 avail_pos = pg_th_get_avail_thread(pg);
                 if (avail_pos < 0) {
-                    printf("All threads are busy, waiting...\n");
+                    printf("%sAll threads are busy, waiting...\n", C_GREEN);
                     avail_pos = pg_th_wait_for_avail_thread(pg);
                 }
 
@@ -296,7 +333,7 @@ GPResult pbg_graph_exec(GPMain pg)
     g_timer_stop(pg->timer);
     pg->elapsed_secs = g_timer_elapsed(pg->timer, &elapsed_usecs);
 
-    printf("===== Total elapsed time: %f\n", pg->elapsed_secs);
+    printf("%s===== Total elapsed time: %f\n", C_RED, pg->elapsed_secs);
     g_timer_destroy(pg->timer);
     pg->timer = NULL;
 
