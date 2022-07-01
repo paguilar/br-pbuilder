@@ -23,7 +23,7 @@ extern gchar   *debug_module;      /**< Set module to debug. Values: [all]. Defa
 extern gchar   *deps_file;         /**< Filename given in the cmdline */
 extern gint    cpu_num;            /**< Max number of CPU used to build */
 
-#define GPBUILD_NAME    "GPBuild"
+#define GPBUILD_NAME    "gpbuilder"
 #define GPBUILD_DESC    "Utilty that builds Buildroot packages following a graph-like pattern: make gpbuild"
 
 #define BUFF_1K         1024

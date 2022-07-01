@@ -90,12 +90,14 @@ void pg_graph_print(gpointer data, gpointer user_data)
 {
     GPNode node = data;
 
-    printf("%s\n", node->name->str);
-    printf("    Priority: %d\n", node->priority);
-    printf("    Parents: ");
+    if (!node)
+        return;
+
+    printf("Package: %s%s%s\n", C_GREEN, node->name->str, C_NORMAL);
+    printf("\tPriority: %d\n", node->priority);
+    printf("\tParents: ");
     g_list_foreach(node->parents, pg_graph_print_node_name, NULL);
-    printf("\n");
-    printf("    Childs: ");
+    printf("\n\tChilds: ");
     g_list_foreach(node->childs, pg_graph_print_node_name, NULL);
     printf("\n");
 }
@@ -171,7 +173,7 @@ GPResult pg_node_calc_prio(GPNode parent)
     if (!parent)
         return GP_FAIL;
 
-    pg_log(3, DBG_CREATE, "%s(): Processing '%s'\n", __func__, parent->name->str);
+    pg_debug(3, DBG_CREATE, "%s(): Processing '%s'\n", __func__, parent->name->str);
 
     g_list_foreach(parent->childs, pg_child_calc_prio, parent);
 
@@ -192,9 +194,10 @@ static void pg_node_calc_prio(gpointer data, gpointer user_data)
 
 static GPResult pg_graph_calc_nodes_priority(GList *graph)
 {
-    GList   *list;
-    GPNode  node;
-    gushort prio = 0;
+    GList       *list;
+    GPNode      node;
+    gshort      prio = -1;
+    gboolean    same_prio = FALSE;
 
     if (!graph)
         return GP_FAIL;
@@ -209,24 +212,37 @@ static GPResult pg_graph_calc_nodes_priority(GList *graph)
 #endif
 
 #if 1
+    /* Get uclibc priority */
     for (list = graph; list; list = list->next) {
         node = list->data;
         if (!strcmp(node->name->str, "uclibc")) {
-            /*node->priority++;*/
             prio = node->priority;
             printf("uclibc priority is %d\n", node->priority);
             break;
         }
     }
 
-    if (prio) {
-        for (list = graph; list; list = list->next) {
-            node = list->data;
-            if (node->priority >= prio) {
-                if (strcmp(node->name->str, "uclibc")) {
-                    node->priority++;
-                    pg_log(2, DBG_CREATE, "Recalculating '%s' priority to %d\n", node->name->str, node->priority);
-                }
+    if (prio < 0)
+        return GP_OK;
+
+    /* Is there another package with the same priority? */
+    for (list = graph; list; list = list->next) {
+        node = list->data;
+        if (node->priority == prio) {
+            same_prio = TRUE;
+            break;
+        }
+    }
+
+    if (same_prio == FALSE)
+        return GP_OK;
+
+    for (list = graph; list; list = list->next) {
+        node = list->data;
+        if (node->priority >= prio) {
+            if (strcmp(node->name->str, "uclibc")) {
+                node->priority++;
+                pg_debug(2, DBG_CREATE, "Recalculating '%s' priority to %d\n", node->name->str, node->priority);
             }
         }
     }
@@ -374,6 +390,7 @@ static GPResult pg_graph_create(GPMain pg)
 
     /* Create graph's root node */
     if ((graph = pg_node_create(pg, graph, "ALL", NULL)) == NULL) {
+        printf("%s(): Failed to create root node", __func__);
         pg_log(GP_ERR, "%s(): Failed to create root node", __func__);
         return GP_FAIL;
     }
@@ -433,6 +450,7 @@ static GPResult pg_graph_create(GPMain pg)
 
         /* Create new node and its parents nodes */
         if ((graph = pg_node_create(pg, graph, *node_name, parents_str)) == NULL) {
+            printf("%s(): Failed to create node '%s' or one of its parents", __func__, *node_name);
             pg_log(GP_ERR, "%s(): Failed to create node '%s' or one of its parents", __func__, *node_name);
             g_strfreev(parents_str);
             g_strfreev(node_name);
@@ -622,11 +640,13 @@ GPResult pbg_graph_create(GPMain *pbg)
         return GP_FAIL;
     }
 
+#if 0
     if (br_pkg_list_create(pg) != GP_OK) {
         pg_log(GP_ERR, "Failed to create list of buildroot package names");
         pg_graph_free(pg);
         return GP_FAIL;
     }
+#endif
 
     if (pg_graph_create(pg) != GP_OK) {
         pg_log(GP_ERR, "Failed to create graph");

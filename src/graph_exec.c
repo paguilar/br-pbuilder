@@ -99,7 +99,7 @@ gshort pg_th_get_avail_thread(GPMain pg)
 
     for (i = 0; i < pg->cpu_num; i++) {
         if (*(pg->th_pool + i) == 0) {
-            pg_log(2, DBG_EXEC, "Position free: %d", i);
+            pg_debug(2, DBG_EXEC, "Position free: %d", i);
             return i;
         }
     }
@@ -135,7 +135,7 @@ GPResult pg_th_remove_from_pool(GPMain pg, pthread_t *tid)
     for (i = 0; i < pg->cpu_num; i++) {
         /*printf("Comparing %lu - %lu\n", *(pg->th_pool + i), *tid);*/
         if (*(pg->th_pool + i) == *tid) {
-            pg_debug(2, DBG_EXEC, "%sFreeing thread at position %d\n", C_GREEN, i);
+            pg_debug(2, DBG_EXEC, "Freeing thread at position %d\n", i);
             *(pg->th_pool + i) = 0;
             return GP_OK;
         }
@@ -194,7 +194,7 @@ gpointer pg_node_build(gpointer data)
     pg_th_add_to_pool(node_building->pg, &tid, node_building->avail_pos);
 
     /* Exec system() with make? */
-    printf("%sThread at position %d is building '%s'\n", C_GREEN, node_building->avail_pos, node->name->str);
+    printf("Thread at position %d is building '%s'\n", node_building->avail_pos, node->name->str);
 
     cmd = g_string_new(NULL);
     /*g_string_printf(cmd, "make %s 1>/dev/null 2>/dev/null", node->name->str);*/
@@ -246,7 +246,7 @@ gpointer pg_node_build(gpointer data)
     g_timer_stop(node->timer);
     node->elapsed_secs = g_timer_elapsed(node->timer, &elapsed_usecs);
 
-    printf("%sPackage '%s' built in %f secs\n", C_GREEN, node->name->str, node->elapsed_secs);
+    printf("%sPackage '%s' built in %f secs%s\n", C_GREEN, node->name->str, node->elapsed_secs, C_NORMAL);
     g_timer_destroy(node->timer);
 
     g_string_free(cmd, TRUE);
@@ -297,15 +297,15 @@ GPResult pbg_graph_exec(GPMain pg)
     pg->timer = g_timer_new();
 
     for (i = 1; i <= prio_num; i++) {
-        printf("%s========== Processing packages with priority %d...\n", C_RED, i);
+        printf("%s========== Processing packages with priority %d...%s\n", C_RED, i, C_NORMAL);
         for (list = pg->graph; list != NULL; list = list->next) {
             node = list->data;
             if (node->priority == i) {
-                printf("%sProcessing '%s' (%d)\n", C_GREEN, node->name->str, node->priority);
+                printf("Processing '%s' (%d)\n", node->name->str, node->priority);
 
                 avail_pos = pg_th_get_avail_thread(pg);
                 if (avail_pos < 0) {
-                    printf("%sAll threads are busy, waiting...\n", C_GREEN);
+                    printf("All threads are busy, waiting...\n");
                     avail_pos = pg_th_wait_for_avail_thread(pg);
                 }
 
@@ -333,7 +333,7 @@ GPResult pbg_graph_exec(GPMain pg)
     g_timer_stop(pg->timer);
     pg->elapsed_secs = g_timer_elapsed(pg->timer, &elapsed_usecs);
 
-    printf("%s===== Total elapsed time: %f\n", C_RED, pg->elapsed_secs);
+    printf("%s===== Total elapsed time: %f%s\n", C_RED, pg->elapsed_secs, C_NORMAL);
     g_timer_destroy(pg->timer);
     pg->timer = NULL;
 
