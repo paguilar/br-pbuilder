@@ -144,10 +144,6 @@ def main():
 
         logging.debug("No need to update the dependencies file")
 
-    if pbuilder_exec(pbuilder_bin, pbuilder_deps_file, log_level) != 0:
-        logging.error("Failed to execute pbuilder. Exiting!")
-        sys.exit(1)
-
 
 if __name__ == "__main__":
     sys.exit(main())
