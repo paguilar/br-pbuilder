@@ -103,23 +103,22 @@ def main():
     parser = argparse.ArgumentParser("pbuilder.py")
     parser.add_argument("-l", "--loglevel", help="Enable/Disable log level. Default: 0 (disabled)", type=int)
     parser.add_argument("br2_config", help="BR2_CONFIG: The path to the Buildroot .config file", type=str)
-    parser.add_argument("config_dir", help="CONFIG_DIR: The top-level Buildroot Makefile to use", type=str)
-    parser.add_argument("br2_topdir", help="TOPDIR: The path to Buildroot's top dir", type=str)
+    parser.add_argument("br2_build_dir", help="BUILD_DIR: The path where packages are extracted and built", type=str)
     parser.add_argument("pbuilder_path", help="Parallel graph builder sources path", type=str)
     args = parser.parse_args()
     log_level = args.loglevel
     br2_config_file = args.br2_config
-    config_dir = args.config_dir
-    br2_topdir = args.br2_topdir
+    br2_build_dir = args.br2_build_dir
     pbuilder_path = args.pbuilder_path
     pbuilder_bin = pbuilder_path + "/src/pbuilder"
-    pbuilder_deps_file = config_dir + "/.pbuilder.deps"
+    pbuilder_deps_file = br2_build_dir + "/.pbuilder.deps"
 
     set_log_level(log_level)
 
-    os.environ['TOPDIR'] = br2_topdir
-
-    print("TOPDIR: ", br2_topdir)
+    #print("BR2_CONFIG: ", br2_config_file)
+    #print("pbuilder path: ", pbuilder_path)
+    #print("pbuilder bin: ", pbuilder_bin)
+    #print("pbuilder file: ", pbuilder_deps_file)
 
     if os.path.isfile(br2_config_file) is False:
         logging.error("Failed to find BR config file: %s", br2_config_file)
