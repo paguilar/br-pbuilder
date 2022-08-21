@@ -228,7 +228,8 @@ static GPResult pg_graph_calc_nodes_priority(GList *graph)
     /* Is there another package with the same priority? */
     for (list = graph; list; list = list->next) {
         node = list->data;
-        if (node->priority == prio) {
+        if (node->priority == prio && strcmp(node->name->str, "uclibc")) {
+            pg_debug(1, DBG_CREATE, "Package '%s' has the same priority %d\n", node->name->str, node->priority);
             same_prio = TRUE;
             break;
         }
