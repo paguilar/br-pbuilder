@@ -17,6 +17,7 @@ def set_log_level(log_level):
         print("Setting log level to debugging")
 
 
+# Not used. The binary is executed by the Makefile
 def pbuilder_exec(pbuilder_bin, pbuilder_deps_file, log_level):
     if pbuilder_bin is None or pbuilder_deps_file is None:
         logging.debug("NULL parameters received!")
@@ -51,6 +52,7 @@ def pbuilder_exec(pbuilder_bin, pbuilder_deps_file, log_level):
 
 def pbuilder_compile(pbuilder_path):
     logging.debug("Building in %s", pbuilder_path)
+    print("current dir: ", os.getcwd())
 
     os.chdir(pbuilder_path)
     try:
@@ -111,14 +113,14 @@ def main():
     br2_build_dir = args.br2_build_dir
     pbuilder_path = args.pbuilder_path
     pbuilder_bin = pbuilder_path + "/src/pbuilder"
-    pbuilder_deps_file = br2_build_dir + "/.pbuilder.deps"
+    pbuilder_deps_file = ".pbuilder.deps"
 
     set_log_level(log_level)
 
-    #print("BR2_CONFIG: ", br2_config_file)
-    #print("pbuilder path: ", pbuilder_path)
-    #print("pbuilder bin: ", pbuilder_bin)
-    #print("pbuilder file: ", pbuilder_deps_file)
+    if (log_level >= 1):
+        print("BR2_CONFIG: ", br2_config_file)
+        print("BUILD_DIR: ", br2_build_dir)
+        print("pbuilder: ", pbuilder_bin)
 
     if os.path.isfile(br2_config_file) is False:
         logging.error("Failed to find BR config file: %s", br2_config_file)
