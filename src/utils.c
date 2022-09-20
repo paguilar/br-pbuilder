@@ -2,8 +2,9 @@
  * @file utils.c
  * @brief Misc funcs for logging, debugging, etc.
  * 
- * Author: 
- * 
+ * Copyright (C) 2022 Pedro Aguilar <paguilar@paguilar.org>
+ * Released under the terms of the GNU GPL v2.0.
+ *
  */
 
 #include <stdio.h>
@@ -37,7 +38,7 @@ void reset_buff(gchar *buff, guint size)
  * @brief
  * @fmt The format string
  */
-void pg_log(GPLogType log_type, gchar *fmt, ...) 
+void pb_log(GPLogType log_type, gchar *fmt, ...)
 {
     va_list ap; 
     gchar buff[BUFF_1K];
@@ -48,19 +49,19 @@ void pg_log(GPLogType log_type, gchar *fmt, ...)
         va_end(ap);
         switch (log_type) {
             case GP_INFO:
-                printf("%s: INFO: %s\n", GPBUILD_NAME, buff);
+                printf("%s: INFO: %s\n", PBUILDER_NAME, buff);
                 break;
             case GP_WARN:
-                printf("%s: WARNING: %s\n", GPBUILD_NAME, buff);
+                printf("%s: WARNING: %s\n", PBUILDER_NAME, buff);
                 break;
             case GP_ERR:
             default:
-                printf("%s: ERR: %s\n", GPBUILD_NAME, buff);
+                printf("%s: ERR: %s\n", PBUILDER_NAME, buff);
                 break;
         }
     }
     else
-        printf("%s: ERR: Unknown error!\n", GPBUILD_NAME);
+        printf("%s: ERR: Unknown error!\n", PBUILDER_NAME);
 }
 
 /**
@@ -69,7 +70,7 @@ void pg_log(GPLogType log_type, gchar *fmt, ...)
  * @level The debug level
  * @fmt The format string
  */
-void pg_debug(guint level, gchar *module, gchar *fmt, ...) 
+void pb_debug(guint level, gchar *module, gchar *fmt, ...)
 {
     va_list ap;
 

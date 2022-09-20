@@ -2,8 +2,9 @@
  * @file main.c
  * @brief Main file.
  *
- * Author: Pedro Aguilar
- * 
+ * Copyright (C) 2022 Pedro Aguilar <paguilar@paguilar.org>
+ * Released under the terms of the GNU GPL v2.0.
+ *
  */
 
 #include <stdio.h>
@@ -44,10 +45,10 @@ int main(int argc, char *argv[])
     GError          *error = NULL;
     GPMain          pbg;
 
-    opt_context = g_option_context_new (GPBUILD_DESC);
+    opt_context = g_option_context_new (PBUILDER_DESC);
     g_option_context_add_main_entries (opt_context, opt_entries, NULL);
     if (!g_option_context_parse (opt_context, &argc, &argv, &error)) {
-        pg_log(GP_ERR, "Error while parsing options: %s. Aborting!", error->message);
+        pb_log(GP_ERR, "Error while parsing options: %s. Aborting!", error->message);
         return EXIT_FAILURE;
     }
 
@@ -57,25 +58,25 @@ int main(int argc, char *argv[])
     }
 
     if (!deps_file) {
-        pg_log(GP_ERR, "No dependencies filename given. Aborting!");
+        pb_log(GP_ERR, "No dependencies filename given. Aborting!");
         g_option_context_free(opt_context);
         return EXIT_FAILURE;
     }
 
-    if (pbg_graph_create(&pbg) != GP_OK) {
-        pg_log(GP_ERR, "Failed to create graph");
+    if (pb_graph_create(&pbg) != GP_OK) {
+        pb_log(GP_ERR, "Failed to create graph");
         g_option_context_free(opt_context);
         return EXIT_FAILURE;
     }
 
-    if (pbg_graph_exec(pbg) != GP_OK) {
-        pg_log(GP_ERR, "Failed to execute graph");
-        pbg_graph_free(pbg);
+    if (pb_graph_exec(pbg) != GP_OK) {
+        pb_log(GP_ERR, "Failed to execute graph");
+        pb_graph_free(pbg);
         g_option_context_free(opt_context);
         return EXIT_FAILURE;
     }
 
-    pbg_graph_free(pbg);
+    pb_graph_free(pbg);
 
     g_option_context_free(opt_context);
 

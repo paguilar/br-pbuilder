@@ -1,15 +1,24 @@
+/**
+ * @file graph_exec.c
+ * @brief
+ *
+ * Copyright (C) 2022 Pedro Aguilar <paguilar@paguilar.org>
+ * Released under the terms of the GNU GPL v2.0.
+ *
+ */
 
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <errno.h>
 #include <glib-2.0/glib.h>
 
 #include "graph_create.h"
 #include "graph_exec.h"
 
-GPResult pg_finalize_target(GPMain pg, const gchar *target)
+static GPResult pg_finalize_single_target(GPMain pg, const gchar *target)
 {
     gint    ret;
     GString *cmd;
@@ -27,7 +36,7 @@ GPResult pg_finalize_target(GPMain pg, const gchar *target)
 
     ret = system(cmd->str);
     if (ret != 0)
-        pg_log(LOG_ERR, "%s(): Error while building '%s'", __func__, target);
+        pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, target);
 
     g_timer_stop(timer);
     elapsed_time = g_timer_elapsed(timer, &elapsed_usecs);
@@ -40,28 +49,28 @@ GPResult pg_finalize_target(GPMain pg, const gchar *target)
     return GP_OK;
 }
 
-static GPResult finalize_targets(GPMain pg)
+static GPResult pg_finalize_targets(GPMain pg)
 {
     if (!pg)
         return GP_FAIL;
 
-    if (pg_finalize_target(pg, "host-finalize") != GP_OK) {
-        pg_log(LOG_ERR, "%s(): Failed to execute 'host-finalize' target", __func__);
+    if (pg_finalize_single_target(pg, "host-finalize") != GP_OK) {
+        pb_log(LOG_ERR, "%s(): Failed to execute 'host-finalize' target", __func__);
         return GP_FAIL;
     }
 
-    if (pg_finalize_target(pg, "staging-finalize") != GP_OK) {
-        pg_log(LOG_ERR, "%s(): Failed to execute 'staging-finalize' target", __func__);
+    if (pg_finalize_single_target(pg, "staging-finalize") != GP_OK) {
+        pb_log(LOG_ERR, "%s(): Failed to execute 'staging-finalize' target", __func__);
         return GP_FAIL;
     }
 
-    if (pg_finalize_target(pg, "target-finalize") != GP_OK) {
-        pg_log(LOG_ERR, "%s(): Failed to execute 'target-finalize' target", __func__);
+    if (pg_finalize_single_target(pg, "target-finalize") != GP_OK) {
+        pb_log(LOG_ERR, "%s(): Failed to execute 'target-finalize' target", __func__);
         return GP_FAIL;
     }
 
-    if (pg_finalize_target(pg, "target-post-image") != GP_OK) {
-        pg_log(LOG_ERR, "%s(): Failed to execute 'target-post-image' target", __func__);
+    if (pg_finalize_single_target(pg, "target-post-image") != GP_OK) {
+        pb_log(LOG_ERR, "%s(): Failed to execute 'target-post-image' target", __func__);
         return GP_FAIL;
     }
 
@@ -69,7 +78,7 @@ static GPResult finalize_targets(GPMain pg)
 }
 
 
-void pg_th_wait_for_all_threads(GPMain pg)
+static void pg_th_wait_for_all_threads(GPMain pg)
 {
     gushort i,
             th_total;
@@ -90,7 +99,7 @@ void pg_th_wait_for_all_threads(GPMain pg)
     }
 }
 
-gshort pg_th_get_avail_thread(GPMain pg)
+static gshort pg_th_get_avail_thread(GPMain pg)
 {
     gushort i;
 
@@ -99,7 +108,7 @@ gshort pg_th_get_avail_thread(GPMain pg)
 
     for (i = 0; i < pg->cpu_num; i++) {
         if (*(pg->th_pool + i) == 0) {
-            pg_debug(2, DBG_EXEC, "Position free: %d", i);
+            pb_debug(2, DBG_EXEC, "Position free: %d", i);
             return i;
         }
     }
@@ -109,7 +118,7 @@ gshort pg_th_get_avail_thread(GPMain pg)
 }
 
 
-gshort pg_th_wait_for_avail_thread(GPMain pg)
+static gshort pg_th_wait_for_avail_thread(GPMain pg)
 {
     gshort avail_pos = -1;
 
@@ -125,7 +134,7 @@ gshort pg_th_wait_for_avail_thread(GPMain pg)
 }
 
 
-GPResult pg_th_remove_from_pool(GPMain pg, pthread_t *tid)
+static GPResult pg_th_remove_from_pool(GPMain pg, pthread_t *tid)
 {
     gushort i;
 
@@ -135,33 +144,32 @@ GPResult pg_th_remove_from_pool(GPMain pg, pthread_t *tid)
     for (i = 0; i < pg->cpu_num; i++) {
         /*printf("Comparing %lu - %lu\n", *(pg->th_pool + i), *tid);*/
         if (*(pg->th_pool + i) == *tid) {
-            pg_debug(2, DBG_EXEC, "Freeing thread at position %d\n", i);
+            pb_debug(2, DBG_EXEC, "Freeing thread at position %d\n", i);
             *(pg->th_pool + i) = 0;
             return GP_OK;
         }
     }
 
-    pg_log(GP_ERR, "Trying to remove unregister thread %lu\n", *tid);
+    pb_log(GP_ERR, "Trying to remove unregister thread %lu\n", *tid);
 
     return GP_FAIL;
 }
 
-GPResult pg_th_add_to_pool(GPMain pg, pthread_t *tid, gushort avail_pos)
+static GPResult pg_th_add_to_pool(GPMain pg, pthread_t *tid, gushort avail_pos)
 {
     if (!pg || !tid)
         return GP_FAIL;
 
     *(pg->th_pool + avail_pos) = *tid;
-    pg_debug(2, DBG_EXEC, "Thread %lu assigned to position %d\n", *tid, avail_pos);
+    pb_debug(2, DBG_EXEC, "Thread %lu assigned to position %d\n", *tid, avail_pos);
 
     return GP_OK;
 }
 
-gpointer pg_node_build(gpointer data)
+static gpointer pg_node_build_th(gpointer data)
 {
     pthread_t   tid;
-    GPNodeBuild node_building = data;
-    GPNode      node;
+    GPNode      node = data;
     GString     *cmd,
                 *logs;
     gulong      elapsed_usecs = 0;
@@ -171,30 +179,29 @@ gpointer pg_node_build(gpointer data)
     FILE        *fp = NULL,
                 *flog = NULL;
     struct stat sb;
-    gint        have_logs = 0;
+    gint        have_logs = 0,
+				p_ret;
 
-    if (!node_building)
+    if (!node)
         return NULL;
 
     configdir = getenv("CONFIG_DIR");
     if (!configdir) {
-        pg_log(LOG_ERR, "%s(): Failed to get environament variable CONFIG_DIR", __func__);
+        pb_log(LOG_ERR, "%s(): Failed to get environament variable CONFIG_DIR", __func__);
         return NULL;
     }
 
     if (chdir(configdir)) {
-        pg_log(LOG_ERR, "%s(): Failed to chdir to %s", __func__, configdir);
+        pb_log(LOG_ERR, "%s(): Failed to chdir to %s", __func__, configdir);
         return NULL;
     }
 
-    node = node_building->node;
-
     tid = pthread_self();
     /* Add thread to pool */
-    pg_th_add_to_pool(node_building->pg, &tid, node_building->avail_pos);
+    pg_th_add_to_pool(node->pg, &tid, node->pool_pos);
 
     /* Exec system() with make? */
-    printf("Thread at position %d is building '%s'\n", node_building->avail_pos, node->name->str);
+    printf("Thread at position %d is building '%s'\n", node->pool_pos, node->name->str);
 
     cmd = g_string_new(NULL);
     /*g_string_printf(cmd, "make %s 1>/dev/null 2>/dev/null", node->name->str);*/
@@ -210,19 +217,21 @@ gpointer pg_node_build(gpointer data)
         have_logs = 1;
     else
         if (mkdir(logs->str, S_IRWXU) != 0)
-            pg_log(LOG_DEBUG, "%s(): mkdir(): %s: %s", __func__, logs->str, strerror(errno));
+            pb_log(LOG_DEBUG, "%s(): mkdir(): %s: %s", __func__, logs->str, strerror(errno));
 
     g_string_printf(logs, "pbuilder_logs/%s.log", node->name->str);
     if ((flog = fopen(logs->str, "a")) != NULL)
         have_logs = 1;
     else
-        pg_log(LOG_ERR, "%s(): fopen(): %s: %s", __func__, logs->str, strerror(errno));
+        pb_log(LOG_ERR, "%s(): fopen(): %s: %s", __func__, logs->str, strerror(errno));
 
 #endif
 
     fp = popen(cmd->str, "r");
-    if (fp == NULL)
-        pg_log(LOG_ERR, "%s(): Error while building '%s'", __func__, node->name->str);
+    if (fp == NULL) {
+        pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, node->name->str);
+		/* TODO exit thread*/
+	}
     else {
         while (fgets(path, sizeof(path), fp) != NULL) {
             if (have_logs)
@@ -231,7 +240,7 @@ gpointer pg_node_build(gpointer data)
                 printf("%s", path);
         }
 
-        fclose(fp);
+        p_ret = WEXITSTATUS(pclose(fp));
     }
 
     if (have_logs)
@@ -241,7 +250,7 @@ gpointer pg_node_build(gpointer data)
 
     /*ret = system(cmd->str);*/
     /*if (ret != 0)*/
-    /*pg_log(LOG_ERR, "%s(): Error while building '%s'", __func__, node->name->str);*/
+    /*pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, node->name->str);*/
 
     g_timer_stop(node->timer);
     node->elapsed_secs = g_timer_elapsed(node->timer, &elapsed_usecs);
@@ -253,15 +262,13 @@ gpointer pg_node_build(gpointer data)
 
     /* Remove thread from pool */
     if (pg_th_remove_from_pool(node->pg, &tid) != GP_OK) {
-        pg_log(GP_ERR, "%s(): Failed to remove thread (%lu) from pool!", __func__, tid);
+        pb_log(GP_ERR, "%s(): Failed to remove thread (%lu) from pool!", __func__, tid);
     }
-
-    g_free(node_building);
 
     node->status = GP_STATUS_DONE;
 
     /*if (ret != 0) {*/
-    /*pg_log(LOG_ERR, "%s(): Exiting!", __func__);*/
+    /*pb_log(LOG_ERR, "%s(): Exiting!", __func__);*/
     /*_exit(EXIT_FAILURE);*/
     /*}*/
 
@@ -277,22 +284,21 @@ void pg_node_get_max_priority(gpointer data, gpointer user_data)
         *max_prio = node->priority;
 }
 
-GPResult pbg_graph_exec(GPMain pg)
+GPResult pb_graph_exec(GPMain pg)
 {
     GList       *list;
     guint       i,
                 prio_num = 0;
-    gshort      avail_pos;
+    gshort      pool_pos;
     GPNode      node;
     pthread_t   th;
-    GPNodeBuild node_building;
     gulong      elapsed_usecs = 0;
 
     if (!pg)
         return GP_FAIL;
 
     g_list_foreach(pg->graph, pg_node_get_max_priority, &prio_num);
-    pg_debug(1, DBG_ALL, "Number of priorities found: %d\n", prio_num);
+    pb_debug(1, DBG_ALL, "Number of priorities found: %d\n", prio_num);
 
     pg->timer = g_timer_new();
 
@@ -303,32 +309,28 @@ GPResult pbg_graph_exec(GPMain pg)
             if (node->priority == i) {
                 printf("Processing '%s' (%d)\n", node->name->str, node->priority);
 
-                avail_pos = pg_th_get_avail_thread(pg);
-                if (avail_pos < 0) {
+                pool_pos = pg_th_get_avail_thread(pg);
+                if (pool_pos < 0) {
                     printf("All threads are busy, waiting...\n");
-                    avail_pos = pg_th_wait_for_avail_thread(pg);
+                    pool_pos = pg_th_wait_for_avail_thread(pg);
                 }
 
                 node->status = GP_STATUS_BUILDING;
 
-                node_building = g_new0(struct pg_node_building_st, 1);
-                node_building->node = node;
-                node_building->pg = pg;
-                node_building->node = node;
-                node_building->avail_pos = avail_pos;
+                node->pool_pos = pool_pos;
 
                 /* TODO Reserve position in pool */
-                pg->th_pool[avail_pos] = -1;
+                pg->th_pool[pool_pos] = -1;
 
-                pthread_create(&th, NULL, pg_node_build, node_building);
+                pthread_create(&th, NULL, pg_node_build_th, node);
             }
         }
         printf("\n");
         pg_th_wait_for_all_threads(pg);
     }
 
-    if (finalize_targets(pg) != GP_OK)
-        pg_log(LOG_ERR, "%s(): Failed to finalize targets", __func__);
+    if (pg_finalize_targets(pg) != GP_OK)
+        pb_log(LOG_ERR, "%s(): Failed to finalize targets", __func__);
 
     g_timer_stop(pg->timer);
     pg->elapsed_secs = g_timer_elapsed(pg->timer, &elapsed_usecs);
@@ -339,5 +341,4 @@ GPResult pbg_graph_exec(GPMain pg)
 
     return GP_OK;
 }
-
 

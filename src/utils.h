@@ -2,8 +2,9 @@
  * @file utils.h
  * @brief Misc functions used all around the project.
  * 
- * Author: 
- * 
+ * Copyright (C) 2022 Pedro Aguilar <paguilar@paguilar.org>
+ * Released under the terms of the GNU GPL v2.0.
+ *
  */
 
 #ifndef _UTILS_H_
@@ -23,8 +24,8 @@ extern gchar   *debug_module;      /**< Set module to debug. Values: [all]. Defa
 extern gchar   *deps_file;         /**< Filename given in the cmdline */
 extern gint    cpu_num;            /**< Max number of CPU used to build */
 
-#define GPBUILD_NAME    "gpbuilder"
-#define GPBUILD_DESC    "Utilty that builds Buildroot packages following a graph-like pattern: make gpbuild"
+#define PBUILDER_NAME   "pbuilder"
+#define PBUILDER_DESC   "Buildroot utility that builds packages in parallel using an acyclic graph"
 
 #define BUFF_1K         1024
 #define BUFF_4K         4096
@@ -49,8 +50,8 @@ extern gint    cpu_num;            /**< Max number of CPU used to build */
  */
 typedef enum
 {
-    GP_OK = 0,          /**< No error, everything was OK */
-    GP_FAIL,           /**< Error, something went wrong */
+    GP_OK = 0,			/**< No error, everything was OK */
+    GP_FAIL,            /**< Error, something went wrong */
 } GPResult;
 
 
@@ -62,7 +63,7 @@ typedef enum
 } GPLogType;
 
 void        reset_buff(gchar *, guint);
-void        pg_log(GPLogType, gchar *, ...);
-void        pg_debug(guint, gchar *, gchar *, ...);
+void        pb_log(GPLogType, gchar *, ...);
+void        pb_debug(guint, gchar *, gchar *, ...);
 
 #endif /* _UTILS_H_ */
