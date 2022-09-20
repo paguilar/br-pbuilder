@@ -1,16 +1,16 @@
 diff --git a/Makefile b/Makefile
-index 05b790d770..ba867ad61c 100644
+index ec7c034ac1..89191db864 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -919,6 +919,12 @@ show-info:
+@@ -918,6 +918,12 @@ show-info:
  		) \
  	)
  
 +PHONY: pbuilder
 +pbuilder:
-+	@cd $(BUILD_DIR)/..; \
++	@cd $(CONFIG_DIR); \
 +	$(TOPDIR)/support/scripts/pbuilder.py -l 2 $(BR2_CONFIG) $(BUILD_DIR) $(TOPDIR)/utils/pbuilder; \
-+	TOPDIR=$(TOPDIR) CONFIG_DIR=$(CONFIG_DIR) $(TOPDIR)/utils/pbuilder/src/pbuilder -l 1 -f $(BUILD_DIR)/.pbuilder.deps
++	TOPDIR=$(TOPDIR) CONFIG_DIR=$(CONFIG_DIR) $(TOPDIR)/utils/pbuilder/src/pbuilder -l 1 -f .pbuilder.deps
 +
  .PHONY: pkg-stats
  pkg-stats:
