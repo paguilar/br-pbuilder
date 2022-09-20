@@ -1,8 +1,7 @@
 
-br-pbuilder
-Parallel builder for Buildroot that uses an acyclic graph
-
-The graph is organized according to the packages dependencies
+The Buildroot parallel builder or br-pbuilder for short is an utility that
+builds packages in parallel using an acyclic graph organized according to the
+packages dependencies.
 
 The graph is created in levels, the graph's root is a package that does not have
 any dependency on any package. The second level contains packages whose only
