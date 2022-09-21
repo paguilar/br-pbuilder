@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     opt_context = g_option_context_new (PBUILDER_DESC);
     g_option_context_add_main_entries (opt_context, opt_entries, NULL);
     if (!g_option_context_parse (opt_context, &argc, &argv, &error)) {
-        pb_log(GP_ERR, "Error while parsing options: %s. Aborting!", error->message);
+        pb_log(PB_ERR, "Error while parsing options: %s. Aborting!", error->message);
         return EXIT_FAILURE;
     }
 
@@ -58,19 +58,19 @@ int main(int argc, char *argv[])
     }
 
     if (!deps_file) {
-        pb_log(GP_ERR, "No dependencies filename given. Aborting!");
+        pb_log(PB_ERR, "No dependencies filename given. Aborting!");
         g_option_context_free(opt_context);
         return EXIT_FAILURE;
     }
 
-    if (pb_graph_create(&pbg) != GP_OK) {
-        pb_log(GP_ERR, "Failed to create graph");
+    if (pb_graph_create(&pbg) != PB_OK) {
+        pb_log(PB_ERR, "Failed to create graph");
         g_option_context_free(opt_context);
         return EXIT_FAILURE;
     }
 
-    if (pb_graph_exec(pbg) != GP_OK) {
-        pb_log(GP_ERR, "Failed to execute graph");
+    if (pb_graph_exec(pbg) != PB_OK) {
+        pb_log(PB_ERR, "Failed to execute graph");
         pb_graph_free(pbg);
         g_option_context_free(opt_context);
         return EXIT_FAILURE;

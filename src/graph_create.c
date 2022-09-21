@@ -103,13 +103,13 @@ static gint pb_graph_order_by_priority(gconstpointer a, gconstpointer b)
 static PBResult pb_child_set_status_ready(PBNode node)
 {
     if (node->status != PB_STATUS_PENDING)
-        return GP_OK;
+        return PB_OK;
 
     node->status = PB_STATUS_READY;
 
     pb_debug(2, DBG_CREATE, "Node '%s' has build priority:    %d\n", node->name->str, node->priority);
 
-    return GP_OK;
+    return PB_OK;
 }
 
 static void pb_child_set_prio(gpointer data, gpointer user_data)
@@ -156,7 +156,7 @@ static void pb_grandson_calc_prio(gpointer data, gpointer user_data)
 PBResult pb_node_calc_prio(PBNode parent)
 {
     if (!parent)
-        return GP_FAIL;
+        return PB_FAIL;
 
     pb_debug(3, DBG_CREATE, "%s(): Processing '%s'\n", __func__, parent->name->str);
 
@@ -164,7 +164,7 @@ PBResult pb_node_calc_prio(PBNode parent)
 
     g_list_foreach(parent->childs, pb_grandson_calc_prio, parent);
 
-    return GP_OK;
+    return PB_OK;
 }
 #else
 static void pb_node_calc_prio(gpointer data, gpointer user_data)
@@ -185,12 +185,12 @@ static PBResult pb_graph_calc_nodes_priority(GList *graph)
     gboolean    same_prio = FALSE;
 
     if (!graph)
-        return GP_FAIL;
+        return PB_FAIL;
 
 #if 1
-    if (pb_node_calc_prio(graph->data) != GP_OK) {
-        pb_log(GP_ERR, "Failed to build packages in the graph");
-        return GP_FAIL;
+    if (pb_node_calc_prio(graph->data) != PB_OK) {
+        pb_log(PB_ERR, "Failed to build packages in the graph");
+        return PB_FAIL;
     }
 #else
     g_list_foreach(graph, pb_node_calc_prio, NULL);
@@ -208,7 +208,7 @@ static PBResult pb_graph_calc_nodes_priority(GList *graph)
     }
 
     if (prio < 0)
-        return GP_OK;
+        return PB_OK;
 
     /* Is there another package with the same priority? */
     for (list = graph; list; list = list->next) {
@@ -221,7 +221,7 @@ static PBResult pb_graph_calc_nodes_priority(GList *graph)
     }
 
     if (same_prio == FALSE)
-        return GP_OK;
+        return PB_OK;
 
     for (list = graph; list; list = list->next) {
         node = list->data;
@@ -234,7 +234,7 @@ static PBResult pb_graph_calc_nodes_priority(GList *graph)
     }
 #endif
 
-    return GP_OK;
+    return PB_OK;
 }
 
 gint pb_node_find_by_name(gconstpointer a, gconstpointer b)
@@ -376,13 +376,13 @@ static PBResult pb_graph_create_from_deps_file(PBMain pg)
     /* Create graph's root node */
     if ((graph = pb_node_create(pg, graph, "ALL", NULL)) == NULL) {
         printf("%s(): Failed to create root node", __func__);
-        pb_log(GP_ERR, "%s(): Failed to create root node", __func__);
-        return GP_FAIL;
+        pb_log(PB_ERR, "%s(): Failed to create root node", __func__);
+        return PB_FAIL;
     }
 
     if ((fd = fopen(deps_file, "r")) == NULL) {
-        pb_log(GP_ERR, "%s(): open(): %s: %s", __func__, deps_file, strerror(errno));
-        return GP_FAIL;
+        pb_log(PB_ERR, "%s(): open(): %s: %s", __func__, deps_file, strerror(errno));
+        return PB_FAIL;
     }
 
     memset(line, 0, BUFF_4K);
@@ -419,10 +419,10 @@ static PBResult pb_graph_create_from_deps_file(PBMain pg)
         /* Create new node and its parents nodes */
         if ((graph = pb_node_create(pg, graph, *node_name, parents_str)) == NULL) {
             printf("%s(): Failed to create node '%s' or one of its parents", __func__, *node_name);
-            pb_log(GP_ERR, "%s(): Failed to create node '%s' or one of its parents", __func__, *node_name);
+            pb_log(PB_ERR, "%s(): Failed to create node '%s' or one of its parents", __func__, *node_name);
             g_strfreev(parents_str);
             g_strfreev(node_name);
-            return GP_FAIL;
+            return PB_FAIL;
         }
 
         g_strfreev(node_name);
@@ -440,17 +440,17 @@ static PBResult pb_graph_create_from_deps_file(PBMain pg)
 
     pg->graph = graph;
 
-    return GP_OK;
+    return PB_OK;
 }
 
 static PBResult pb_th_init_pool(PBMain pg)
 {
     if (!pg)
-        return GP_FAIL;
+        return PB_FAIL;
 
     pg->th_pool = g_new0(gint64, pg->cpu_num);
 
-    return GP_OK;
+    return PB_OK;
 }
 
 void pb_graph_free(PBMain pbg)
@@ -483,30 +483,30 @@ PBResult pb_graph_create(PBMain *pbg)
     else
         pg->cpu_num = cpu_num;
 
-    if (pb_th_init_pool(pg) != GP_OK) {
-        pb_log(GP_ERR, "Failed to init thread pool");
+    if (pb_th_init_pool(pg) != PB_OK) {
+        pb_log(PB_ERR, "Failed to init thread pool");
         pb_graph_free(pg);
-        return GP_FAIL;
+        return PB_FAIL;
     }
 
 #if 0
-    if (br_pkg_list_create(pg) != GP_OK) {
-        pb_log(GP_ERR, "Failed to create list of buildroot package names");
+    if (br_pkg_list_create(pg) != PB_OK) {
+        pb_log(PB_ERR, "Failed to create list of buildroot package names");
         pb_graph_free(pg);
-        return GP_FAIL;
+        return PB_FAIL;
     }
 #endif
 
-    if (pb_graph_create_from_deps_file(pg) != GP_OK) {
-        pb_log(GP_ERR, "Failed to create graph");
+    if (pb_graph_create_from_deps_file(pg) != PB_OK) {
+        pb_log(PB_ERR, "Failed to create graph");
         pb_graph_free(pg);
-        return GP_FAIL;
+        return PB_FAIL;
     }
 
-    if (pb_graph_calc_nodes_priority(pg->graph) != GP_OK) {
-        pb_log(GP_ERR, "Failed to build graph");
+    if (pb_graph_calc_nodes_priority(pg->graph) != PB_OK) {
+        pb_log(PB_ERR, "Failed to build graph");
         pb_graph_free(pg);
-        return GP_FAIL;
+        return PB_FAIL;
     }
 
     pg->graph = g_list_sort(pg->graph, pb_graph_order_by_priority);
@@ -519,6 +519,6 @@ PBResult pb_graph_create(PBMain *pbg)
 
     *pbg = pg;
 
-    return GP_OK;
+    return PB_OK;
 }
 

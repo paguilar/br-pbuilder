@@ -32,9 +32,8 @@ extern gint    cpu_num;            /**< Max number of CPU used to build */
 #define BUFF_8K         8192
 
 #define DBG_ALL         "all"
-#define DBG_CREATE      "creation"
-#define DBG_EXEC        "execution"
-#define DBG_NONE        "none"
+#define DBG_CREATE      "create"
+#define DBG_EXEC        "execute"
 
 #define C_NORMAL        "\x1B[0m"
 #define C_RED           "\x1B[31m"
@@ -50,20 +49,20 @@ extern gint    cpu_num;            /**< Max number of CPU used to build */
  */
 typedef enum
 {
-    GP_OK = 0,			/**< No error, everything was OK */
-    GP_FAIL,            /**< Error, something went wrong */
+    PB_OK = 0,			/**< No error, everything was OK */
+    PB_FAIL,            /**< Error, something went wrong */
 } PBResult;
 
 
 typedef enum
 {
-    GP_INFO,
-    GP_WARN,
-    GP_ERR
-} GPLogType;
+    PB_INFO,
+    PB_WARN,
+    PB_ERR
+} PBLogType;
 
 void        reset_buff(gchar *, guint);
-void        pb_log(GPLogType, gchar *, ...);
+void        pb_log(PBLogType, gchar *, ...);
 void        pb_debug(guint, gchar *, gchar *, ...);
 
 #endif /* _UTILS_H_ */

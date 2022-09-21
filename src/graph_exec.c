@@ -27,7 +27,7 @@ static PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
     gulong  elapsed_usecs = 0;
 
     if (!pg || !target)
-        return GP_FAIL;
+        return PB_FAIL;
 
     cmd = g_string_new(NULL);
     g_string_printf(cmd, "make %s 1>/dev/null 2>/dev/null", target);
@@ -46,35 +46,35 @@ static PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
 
     g_string_free(cmd, TRUE);
 
-    return GP_OK;
+    return PB_OK;
 }
 
 static PBResult pb_finalize_targets(PBMain pg)
 {
     if (!pg)
-        return GP_FAIL;
+        return PB_FAIL;
 
-    if (pb_finalize_single_target(pg, "host-finalize") != GP_OK) {
+    if (pb_finalize_single_target(pg, "host-finalize") != PB_OK) {
         pb_log(LOG_ERR, "%s(): Failed to execute 'host-finalize' target", __func__);
-        return GP_FAIL;
+        return PB_FAIL;
     }
 
-    if (pb_finalize_single_target(pg, "staging-finalize") != GP_OK) {
+    if (pb_finalize_single_target(pg, "staging-finalize") != PB_OK) {
         pb_log(LOG_ERR, "%s(): Failed to execute 'staging-finalize' target", __func__);
-        return GP_FAIL;
+        return PB_FAIL;
     }
 
-    if (pb_finalize_single_target(pg, "target-finalize") != GP_OK) {
+    if (pb_finalize_single_target(pg, "target-finalize") != PB_OK) {
         pb_log(LOG_ERR, "%s(): Failed to execute 'target-finalize' target", __func__);
-        return GP_FAIL;
+        return PB_FAIL;
     }
 
-    if (pb_finalize_single_target(pg, "target-post-image") != GP_OK) {
+    if (pb_finalize_single_target(pg, "target-post-image") != PB_OK) {
         pb_log(LOG_ERR, "%s(): Failed to execute 'target-post-image' target", __func__);
-        return GP_FAIL;
+        return PB_FAIL;
     }
 
-    return GP_OK;
+    return PB_OK;
 }
 
 
@@ -139,31 +139,31 @@ static PBResult pb_th_remove_from_pool(PBMain pg, pthread_t *tid)
     gushort i;
 
     if (!pg || !tid)
-        return GP_FAIL;
+        return PB_FAIL;
 
     for (i = 0; i < pg->cpu_num; i++) {
         /*printf("Comparing %lu - %lu\n", *(pg->th_pool + i), *tid);*/
         if (*(pg->th_pool + i) == *tid) {
             pb_debug(2, DBG_EXEC, "Freeing thread at position %d\n", i);
             *(pg->th_pool + i) = 0;
-            return GP_OK;
+            return PB_OK;
         }
     }
 
-    pb_log(GP_ERR, "Trying to remove unregister thread %lu\n", *tid);
+    pb_log(PB_ERR, "Trying to remove unregister thread %lu\n", *tid);
 
-    return GP_FAIL;
+    return PB_FAIL;
 }
 
 static PBResult pb_th_add_to_pool(PBMain pg, pthread_t *tid, gushort avail_pos)
 {
     if (!pg || !tid)
-        return GP_FAIL;
+        return PB_FAIL;
 
     *(pg->th_pool + avail_pos) = *tid;
     pb_debug(2, DBG_EXEC, "Thread %lu assigned to position %d\n", *tid, avail_pos);
 
-    return GP_OK;
+    return PB_OK;
 }
 
 static gpointer pb_node_build_th(gpointer data)
@@ -173,14 +173,14 @@ static gpointer pb_node_build_th(gpointer data)
     GString     *cmd,
                 *logs;
     gulong      elapsed_usecs = 0;
-    /*gint        ret;*/
+	gint        ret,
+    			have_logs = 0,
+				pkg_build_failed = 0;
     gchar       *configdir;
     gchar       path[BUFF_8K];
     FILE        *fp = NULL,
                 *flog = NULL;
     struct stat sb;
-    gint        have_logs = 0,
-				p_ret;
 
     if (!node)
         return NULL;
@@ -210,7 +210,6 @@ static gpointer pb_node_build_th(gpointer data)
 
     node->timer = g_timer_new();
 
-#if 1
     logs = g_string_new("pbuilder_logs");
 
     if ((stat(logs->str, &sb) == 0) && S_ISDIR(sb.st_mode))
@@ -225,12 +224,12 @@ static gpointer pb_node_build_th(gpointer data)
     else
         pb_log(LOG_ERR, "%s(): fopen(): %s: %s", __func__, logs->str, strerror(errno));
 
-#endif
-
     fp = popen(cmd->str, "r");
     if (fp == NULL) {
-        pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, node->name->str);
+        pb_log(LOG_ERR, "%s(): Error while building '%s': %s", __func__, node->name->str, strerror(errno));
+    	printf("%sError while building '%s': %s%s\n", C_RED, node->name->str, strerror(errno),  C_NORMAL);
 		/* TODO exit thread*/
+		pkg_build_failed = 1;
 	}
     else {
         while (fgets(path, sizeof(path), fp) != NULL) {
@@ -240,7 +239,13 @@ static gpointer pb_node_build_th(gpointer data)
                 printf("%s", path);
         }
 
-        p_ret = WEXITSTATUS(pclose(fp));
+		/* TODO Handle return status */
+        ret = WEXITSTATUS(pclose(fp));
+		if (ret) {
+        	pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, node->name->str);
+    		printf("%sError while building '%s'!\nSee pbuilder_logs/%s.log%s\n", C_RED, node->name->str, node->name->str, C_NORMAL);
+			pkg_build_failed = 1;
+		}
     }
 
     if (have_logs)
@@ -248,29 +253,22 @@ static gpointer pb_node_build_th(gpointer data)
 
     g_string_free(logs, TRUE);
 
-    /*ret = system(cmd->str);*/
-    /*if (ret != 0)*/
-    /*pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, node->name->str);*/
-
     g_timer_stop(node->timer);
     node->elapsed_secs = g_timer_elapsed(node->timer, &elapsed_usecs);
 
-    printf("%sPackage '%s' built in %f secs%s\n", C_GREEN, node->name->str, node->elapsed_secs, C_NORMAL);
+	if (!pkg_build_failed)
+    	printf("%sPackage '%s' built in %f secs%s\n", C_GREEN, node->name->str, node->elapsed_secs, C_NORMAL);
+
     g_timer_destroy(node->timer);
 
     g_string_free(cmd, TRUE);
 
     /* Remove thread from pool */
-    if (pb_th_remove_from_pool(node->pg, &tid) != GP_OK) {
-        pb_log(GP_ERR, "%s(): Failed to remove thread (%lu) from pool!", __func__, tid);
+    if (pb_th_remove_from_pool(node->pg, &tid) != PB_OK) {
+        pb_log(PB_ERR, "%s(): Failed to remove thread (%lu) from pool!", __func__, tid);
     }
 
     node->status = PB_STATUS_DONE;
-
-    /*if (ret != 0) {*/
-    /*pb_log(LOG_ERR, "%s(): Exiting!", __func__);*/
-    /*_exit(EXIT_FAILURE);*/
-    /*}*/
 
     return NULL;
 }
@@ -295,7 +293,7 @@ PBResult pb_graph_exec(PBMain pg)
     gulong      elapsed_usecs = 0;
 
     if (!pg)
-        return GP_FAIL;
+        return PB_FAIL;
 
     g_list_foreach(pg->graph, pb_node_get_max_priority, &prio_num);
     pb_debug(1, DBG_ALL, "Number of priorities found: %d\n", prio_num);
@@ -329,7 +327,7 @@ PBResult pb_graph_exec(PBMain pg)
         pb_th_wait_for_all_threads(pg);
     }
 
-    if (pb_finalize_targets(pg) != GP_OK)
+    if (pb_finalize_targets(pg) != PB_OK)
         pb_log(LOG_ERR, "%s(): Failed to finalize targets", __func__);
 
     g_timer_stop(pg->timer);
@@ -339,6 +337,6 @@ PBResult pb_graph_exec(PBMain pg)
     g_timer_destroy(pg->timer);
     pg->timer = NULL;
 
-    return GP_OK;
+    return PB_OK;
 }
 

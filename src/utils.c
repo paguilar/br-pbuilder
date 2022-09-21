@@ -38,7 +38,7 @@ void reset_buff(gchar *buff, guint size)
  * @brief
  * @fmt The format string
  */
-void pb_log(GPLogType log_type, gchar *fmt, ...)
+void pb_log(PBLogType log_type, gchar *fmt, ...)
 {
     va_list ap; 
     gchar buff[BUFF_1K];
@@ -48,13 +48,13 @@ void pb_log(GPLogType log_type, gchar *fmt, ...)
         g_vsnprintf(buff, BUFF_1K, fmt, ap);
         va_end(ap);
         switch (log_type) {
-            case GP_INFO:
+            case PB_INFO:
                 printf("%s: INFO: %s\n", PBUILDER_NAME, buff);
                 break;
-            case GP_WARN:
+            case PB_WARN:
                 printf("%s: WARNING: %s\n", PBUILDER_NAME, buff);
                 break;
-            case GP_ERR:
+            case PB_ERR:
             default:
                 printf("%s: ERR: %s\n", PBUILDER_NAME, buff);
                 break;
