@@ -402,23 +402,6 @@ static PBResult pb_graph_create_from_deps_file(PBMain pg)
 
         g_strchomp(*node_name);
 
-#if 0
-        /* FIXME Discard dependencies that are no real packages */
-        pkg_found = g_list_find_custom(pg->br_pkg_list, *node_name, search_dep_in_br_pkg_list);
-        if (!pkg_found) {
-            printf("----------------> Skipping %s...\n", *node_name);
-            pb_debug(2, DBG_CREATE, "Skipping %s...\n", *node_name);
-            g_strfreev(node_name);
-            continue;
-        }
-#else
-        /*if (!strncmp(*node_name, "rootfs-", 7)) {*/
-        /*pb_debug(2, DBG_CREATE, "Skipping %s...\n", *node_name);*/
-        /*g_strfreev(node_name);*/
-        /*continue;*/
-        /*}*/
-#endif
-
         pb_debug(2, DBG_CREATE, "Processing %s -> ", *node_name);
 
         parent_list = *(node_name + 1);
@@ -459,143 +442,6 @@ static PBResult pb_graph_create_from_deps_file(PBMain pg)
 
     return GP_OK;
 }
-
-#if 0
-/*
- * TODO See support/scripts/pkg-stats
- * Scan WALK_USEFUL_SUBDIRS and discard WALK_EXCLUDES
- */
-static PBResult br_pkg_list_create(PBMain pg)
-{
-    gchar       *topdir;
-    const gchar *entry;
-    GString     *pkgs_path,
-                *pkg_name_linux;
-    GDir        *dir;
-    gushort     i = 0;
-    struct stat sb;
-
-    pb_debug(2, DBG_CREATE, "Obtaining list of availables packages\n");
-
-    topdir = getenv("TOPDIR");
-    if (!topdir) {
-        pb_log(LOG_ERR, "%s(): Failed to get environament variable TOPDIR", __func__);
-        return GP_FAIL;
-    }
-
-    pkgs_path= g_string_new(NULL);
-
-    /* Get package list in $(TOPDIR)/package */
-    g_string_printf(pkgs_path, "%s/package", topdir);
-
-    if ((dir = g_dir_open(pkgs_path->str, 0, NULL)) == NULL) {
-        pb_log(LOG_ERR, "%s(): Failed to open path '%s'", __func__, pkgs_path->str);
-        g_string_free(pkgs_path, TRUE);
-        return GP_FAIL;
-    }
-
-    while ((entry = g_dir_read_name(dir))) {
-        GString *pkg_name;
-
-        pkg_name = g_string_new(NULL);
-        g_string_printf(pkg_name, "%s/%s", pkgs_path->str, entry);
-
-        if (stat(pkg_name->str, &sb) != 0)
-            continue;
-
-        if ((sb.st_mode & S_IFMT) != S_IFDIR) {
-            pb_debug(1, DBG_CREATE, "\tSkipping entry '%s'\n", entry);
-            continue;
-        }
-
-        g_string_printf(pkg_name, "%s", entry);
-
-        pg->br_pkg_list = g_list_append(pg->br_pkg_list, pkg_name);
-        i++;
-    }
-
-    g_dir_close(dir);
-
-    /* Get package list in $(TOPDIR)/boot */
-    g_string_printf(pkgs_path, "%s/boot", topdir);
-
-    if ((dir = g_dir_open(pkgs_path->str, 0, NULL)) == NULL) {
-        pb_log(LOG_ERR, "%s(): Failed to open path '%s'", __func__, pkgs_path->str);
-        g_string_free(pkgs_path, TRUE);
-        return GP_FAIL;
-    }
-
-    while ((entry = g_dir_read_name(dir))) {
-        GString *pkg_name;
-
-        pkg_name = g_string_new(NULL);
-        g_string_printf(pkg_name, "%s/%s", pkgs_path->str, entry);
-
-        if (stat(pkg_name->str, &sb) != 0)
-            continue;
-
-        if ((sb.st_mode & S_IFMT) != S_IFDIR) {
-            pb_debug(2, DBG_CREATE, "\tSkipping entry '%s'\n", entry);
-            continue;
-        }
-
-        g_string_printf(pkg_name, "%s", entry);
-
-        pg->br_pkg_list = g_list_append(pg->br_pkg_list, pkg_name);
-        i++;
-    }
-
-    g_dir_close(dir);
-
-    /* Get package list in $(TOPDIR)/toolchain */
-    g_string_printf(pkgs_path, "%s/toolchain", topdir);
-
-    if ((dir = g_dir_open(pkgs_path->str, 0, NULL)) == NULL) {
-        pb_log(LOG_ERR, "%s(): Failed to open path '%s'", __func__, pkgs_path->str);
-        g_string_free(pkgs_path, TRUE);
-        return GP_FAIL;
-    }
-
-    while ((entry = g_dir_read_name(dir))) {
-        GString *pkg_name;
-
-        pkg_name = g_string_new(NULL);
-        g_string_printf(pkg_name, "%s/%s", pkgs_path->str, entry);
-
-        if (lstat(pkg_name->str, &sb) != 0)
-            continue;
-
-        if ((sb.st_mode & S_IFMT) != S_IFDIR) {
-            pb_debug(2, DBG_CREATE, "\tSkipping entry '%s'\n", entry);
-            continue;
-        }
-
-        g_string_printf(pkg_name, "%s", entry);
-
-        pg->br_pkg_list = g_list_append(pg->br_pkg_list, pkg_name);
-        i++;
-    }
-
-    g_dir_close(dir);
-
-    g_string_free(pkgs_path, TRUE);
-
-    pkg_name_linux = g_string_new("linux");
-    pg->br_pkg_list = g_list_prepend(pg->br_pkg_list, pkg_name_linux);
-    
-
-    /* TODO Add packages in BR2_EXTERNAL */
-
-    /*for (GList *list = pg->br_pkg_list; list; list = list->next) {*/
-    /*GString *elem = list->data;*/
-    /*printf("pkg_name: %s\n", elem->str);*/
-    /*}*/
-
-    pb_debug(2, DBG_CREATE, "\tNumber of packages found: %d\n", i);
-
-    return GP_OK;
-}
-#endif
 
 static PBResult pb_th_init_pool(PBMain pg)
 {
@@ -675,5 +521,4 @@ PBResult pb_graph_create(PBMain *pbg)
 
     return GP_OK;
 }
-
 
