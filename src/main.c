@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
 {
     GOptionContext  *opt_context;
     GError          *error = NULL;
-    GPMain          pbg;
+    PBMain          pbg;	/* Main struct: Parallel Build Graph */
 
     opt_context = g_option_context_new (PBUILDER_DESC);
     g_option_context_add_main_entries (opt_context, opt_entries, NULL);

@@ -52,7 +52,7 @@ typedef enum
 {
     GP_OK = 0,			/**< No error, everything was OK */
     GP_FAIL,            /**< Error, something went wrong */
-} GPResult;
+} PBResult;
 
 
 typedef enum

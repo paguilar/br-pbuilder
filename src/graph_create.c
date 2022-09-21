@@ -44,9 +44,9 @@ static gint search_dep_in_br_pkg_list(gconstpointer data, gconstpointer user_dat
 }
 #endif
 
-void pg_node_free(gpointer data)
+void pb_node_free(gpointer data)
 {
-    GPNode node = data;
+    PBNode node = data;
 
     if (node->name)
         g_string_free(node->name, TRUE);
@@ -65,31 +65,15 @@ void pg_node_free(gpointer data)
     g_free(node);
 }
 
-static void pg_graph_free(GPMain pg)
+void pb_graph_print_node_name(gpointer data, gpointer user_data)
 {
-    if (!pg)
-        return;
-
-    if (pg->graph) {
-        g_list_free_full(pg->graph, pg_node_free);
-    }
-
-    if (pg->th_pool)
-        g_free(pg->th_pool);
-        /*g_thread_pool_free(pg->th_pool, TRUE, TRUE);*/
-
-    g_free(pg);
-}
-
-void pg_graph_print_node_name(gpointer data, gpointer user_data)
-{
-    GPNode  node = data;
+    PBNode  node = data;
     printf("%s ", node->name->str);
 }
 
-void pg_graph_print(gpointer data, gpointer user_data)
+void pb_graph_print(gpointer data, gpointer user_data)
 {
-    GPNode node = data;
+    PBNode node = data;
 
     if (!node)
         return;
@@ -97,16 +81,16 @@ void pg_graph_print(gpointer data, gpointer user_data)
     printf("Package: %s%s%s\n", C_GREEN, node->name->str, C_NORMAL);
     printf("\tPriority: %d\n", node->priority);
     printf("\tParents: ");
-    g_list_foreach(node->parents, pg_graph_print_node_name, NULL);
+    g_list_foreach(node->parents, pb_graph_print_node_name, NULL);
     printf("\n\tChilds: ");
-    g_list_foreach(node->childs, pg_graph_print_node_name, NULL);
+    g_list_foreach(node->childs, pb_graph_print_node_name, NULL);
     printf("\n");
 }
 
-static gint pg_graph_order_by_priority(gconstpointer a, gconstpointer b)
+static gint pb_graph_order_by_priority(gconstpointer a, gconstpointer b)
 {
-    GPNode node_a = (GPNode)a;
-    GPNode node_b = (GPNode)b;
+    PBNode node_a = (PBNode)a;
+    PBNode node_b = (PBNode)b;
 
     if (node_a->priority < node_b->priority)
         return -1;
@@ -116,87 +100,87 @@ static gint pg_graph_order_by_priority(gconstpointer a, gconstpointer b)
         return 0;
 }
 
-static GPResult pg_child_set_status_ready(GPNode node)
+static PBResult pb_child_set_status_ready(PBNode node)
 {
-    if (node->status != GP_STATUS_PENDING)
+    if (node->status != PB_STATUS_PENDING)
         return GP_OK;
 
-    node->status = GP_STATUS_READY;
+    node->status = PB_STATUS_READY;
 
     pb_debug(2, DBG_CREATE, "Node '%s' has build priority:    %d\n", node->name->str, node->priority);
 
     return GP_OK;
 }
 
-static void pg_child_set_prio(gpointer data, gpointer user_data)
+static void pb_child_set_prio(gpointer data, gpointer user_data)
 {
-    GPNode  parent = data;
-    GPNode  child = user_data;
+    PBNode  parent = data;
+    PBNode  child = user_data;
 
     if (parent->priority >= child->priority) {
         child->priority = parent->priority + 1;
     }
 }
 
-static void pg_are_parents_ready(gpointer data, gpointer user_data)
+static void pb_are_parents_ready(gpointer data, gpointer user_data)
 {
-    GPNode      parent = data;
+    PBNode      parent = data;
     gboolean    *parent_already_built = user_data;
 
-    if (parent->status < GP_STATUS_READY)
+    if (parent->status < PB_STATUS_READY)
         *parent_already_built = FALSE;
 }
 
-static void pg_child_calc_prio(gpointer data, gpointer user_data)
+static void pb_child_calc_prio(gpointer data, gpointer user_data)
 {
-    GPNode      child = data;
+    PBNode      child = data;
     gboolean    all_parents_built = TRUE;
 
     /*printf("\t%s(): >>>\n", __func__);*/
-    g_list_foreach(child->parents, pg_are_parents_ready, &all_parents_built);
+    g_list_foreach(child->parents, pb_are_parents_ready, &all_parents_built);
 
     if (all_parents_built) {
-        g_list_foreach(child->parents, pg_child_set_prio, child);
-        pg_child_set_status_ready(child);
+        g_list_foreach(child->parents, pb_child_set_prio, child);
+        pb_child_set_status_ready(child);
     }
 }
 
 #if 1
-static void pg_grandson_calc_prio(gpointer data, gpointer user_data)
+static void pb_grandson_calc_prio(gpointer data, gpointer user_data)
 {
-    GPNode      child = data;
+    PBNode      child = data;
 
-    pg_node_calc_prio(child);
+    pb_node_calc_prio(child);
 }
 
-GPResult pg_node_calc_prio(GPNode parent)
+PBResult pb_node_calc_prio(PBNode parent)
 {
     if (!parent)
         return GP_FAIL;
 
     pb_debug(3, DBG_CREATE, "%s(): Processing '%s'\n", __func__, parent->name->str);
 
-    g_list_foreach(parent->childs, pg_child_calc_prio, parent);
+    g_list_foreach(parent->childs, pb_child_calc_prio, parent);
 
-    g_list_foreach(parent->childs, pg_grandson_calc_prio, parent);
+    g_list_foreach(parent->childs, pb_grandson_calc_prio, parent);
 
     return GP_OK;
 }
 #else
-static void pg_node_calc_prio(gpointer data, gpointer user_data)
+static void pb_node_calc_prio(gpointer data, gpointer user_data)
 {
-    GPNode      parent = data;
+    PBNode      parent = data;
 
     printf("%s(): ----------> %s\n", __func__, parent->name->str);
-    g_list_foreach(parent->childs, pg_child_calc_prio, parent);
+    g_list_foreach(parent->childs, pb_child_calc_prio, parent);
 
 }
 #endif
 
-static GPResult pg_graph_calc_nodes_priority(GList *graph)
+static PBResult pb_graph_calc_nodes_priority(GList *graph)
 {
     GList       *list;
-    GPNode      node;
+    PBNode      node;
     gshort      prio = -1;
     gboolean    same_prio = FALSE;
 
@@ -204,12 +188,12 @@ static GPResult pg_graph_calc_nodes_priority(GList *graph)
         return GP_FAIL;
 
 #if 1
-    if (pg_node_calc_prio(graph->data) != GP_OK) {
+    if (pb_node_calc_prio(graph->data) != GP_OK) {
         pb_log(GP_ERR, "Failed to build packages in the graph");
         return GP_FAIL;
     }
 #else
-    g_list_foreach(graph, pg_node_calc_prio, NULL);
+    g_list_foreach(graph, pb_node_calc_prio, NULL);
 #endif
 
 #if 1
@@ -253,7 +237,7 @@ static GPResult pg_graph_calc_nodes_priority(GList *graph)
     return GP_OK;
 }
 
-gint pg_node_find_by_name(gconstpointer a, gconstpointer b)
+gint pb_node_find_by_name(gconstpointer a, gconstpointer b)
 {
     const struct pbuilder_node_st *  node = a;
     const gchar   *str = b;
@@ -270,24 +254,24 @@ gint pg_node_find_by_name(gconstpointer a, gconstpointer b)
     return 1;
 }
 
-static void pg_node_link_single_parent_to_childs(gpointer data, gpointer user_data)
+static void pb_node_link_single_parent_to_childs(gpointer data, gpointer user_data)
 {
-    GPNode      node = data,
+    PBNode      node = data,
                 child_node;
     GList       *child_element;
     PBNodeName  name_in_graph = user_data;
 
     pb_debug(2, DBG_CREATE, "Linking parent %s to child %s\n", node->name->str, name_in_graph->name->str);
 
-    child_element = g_list_find_custom(node->childs, name_in_graph->name->str, (GCompareFunc)pg_node_find_by_name);
+    child_element = g_list_find_custom(node->childs, name_in_graph->name->str, (GCompareFunc)pb_node_find_by_name);
     if (child_element)
         return;
 
-    child_element = g_list_find_custom(name_in_graph->graph, name_in_graph->name->str, (GCompareFunc)pg_node_find_by_name);
+    child_element = g_list_find_custom(name_in_graph->graph, name_in_graph->name->str, (GCompareFunc)pb_node_find_by_name);
     if (!child_element)
         return;
 
-    child_node = (GPNode)child_element->data;
+    child_node = (PBNode)child_element->data;
     node->childs = g_list_append(node->childs, child_node);
     return;
 }
@@ -295,25 +279,25 @@ static void pg_node_link_single_parent_to_childs(gpointer data, gpointer user_da
 /**
  * @brief For each node in main graph
  */
-void pg_node_link_parents_to_childs(gpointer data, gpointer user_data)
+void pb_node_link_parents_to_childs(gpointer data, gpointer user_data)
 {
-    GPNode      node = data;
+    PBNode      node = data;
     PBNodeName  name_in_graph;
 
     name_in_graph = g_new0(struct pbuilder_node_name_in_graph_st, 1);
     name_in_graph->graph = (GList *)user_data;
     name_in_graph->name = node->name;
 
-    g_list_foreach(node->parents, pg_node_link_single_parent_to_childs, name_in_graph);
+    g_list_foreach(node->parents, pb_node_link_single_parent_to_childs, name_in_graph);
 
     g_free(name_in_graph);
 }
 
-void pg_node_link_childs_to_parents(gpointer data, gpointer user_data)
+void pb_node_link_childs_to_parents(gpointer data, gpointer user_data)
 {
     GList       *graph = user_data,
                 *parent_element;
-    GPNode      node = data,
+    PBNode      node = data,
                 parent_node;
     gchar       **p;
 
@@ -323,11 +307,11 @@ void pg_node_link_childs_to_parents(gpointer data, gpointer user_data)
     pb_debug(2, DBG_CREATE, "Linking parents of %s\n", node->name->str);
 
     for (p = node->parents_str; *p != NULL; p++) {
-        parent_element = g_list_find_custom(graph, *p, (GCompareFunc)pg_node_find_by_name);
+        parent_element = g_list_find_custom(graph, *p, (GCompareFunc)pb_node_find_by_name);
         if (!parent_element)
             continue;
 
-        parent_node = (GPNode)parent_element->data;
+        parent_node = (PBNode)parent_element->data;
 
         if (parent_node) {
             /*if (!g_ptr_array_find(node->parents, parent_node, NULL)) {*/
@@ -340,21 +324,21 @@ void pg_node_link_childs_to_parents(gpointer data, gpointer user_data)
 
     /* Set the root parent 'ALL' to all orphan nodes */
     if (!node->parents) {
-        parent_element = g_list_find_custom(graph, "ALL", (GCompareFunc)pg_node_find_by_name);
-        parent_node = (GPNode)parent_element->data;
+        parent_element = g_list_find_custom(graph, "ALL", (GCompareFunc)pb_node_find_by_name);
+        parent_node = (PBNode)parent_element->data;
         node->parents = g_list_append(node->parents, parent_node);
     }
 }
 
-static GList * pg_node_create(GPMain pg, GList *graph, gchar *node_name, gchar **parents_str)
+static GList * pb_node_create(PBMain pg, GList *graph, gchar *node_name, gchar **parents_str)
 {
-    GPNode      node;
+    PBNode      node;
 
     if (!pg || !node_name)
         return graph;
 
     /* Check if node already exists */
-    if (g_list_find_custom(graph, node_name, (GCompareFunc)pg_node_find_by_name)) {
+    if (g_list_find_custom(graph, node_name, (GCompareFunc)pb_node_find_by_name)) {
         return graph;
     }
 
@@ -364,9 +348,9 @@ static GList * pg_node_create(GPMain pg, GList *graph, gchar *node_name, gchar *
     g_string_printf(node->name, "%s", node_name);
 
     if (!g_strcmp0(node->name->str, "ALL"))
-        node->status = GP_STATUS_DONE;
+        node->status = PB_STATUS_DONE;
     else 
-        node->status = GP_STATUS_PENDING;
+        node->status = PB_STATUS_PENDING;
 
     node->parents_str = parents_str;
     node->parents = NULL;
@@ -381,7 +365,7 @@ static GList * pg_node_create(GPMain pg, GList *graph, gchar *node_name, gchar *
     return graph;
 }
 
-static GPResult pg_graph_create(GPMain pg)
+static PBResult pb_graph_create_from_deps_file(PBMain pg)
 {
     char            line[BUFF_4K];
     FILE            *fd;
@@ -390,7 +374,7 @@ static GPResult pg_graph_create(GPMain pg)
     pb_debug(2, DBG_CREATE, "-----\nCreate each single node\n-----\n");
 
     /* Create graph's root node */
-    if ((graph = pg_node_create(pg, graph, "ALL", NULL)) == NULL) {
+    if ((graph = pb_node_create(pg, graph, "ALL", NULL)) == NULL) {
         printf("%s(): Failed to create root node", __func__);
         pb_log(GP_ERR, "%s(): Failed to create root node", __func__);
         return GP_FAIL;
@@ -450,7 +434,7 @@ static GPResult pg_graph_create(GPMain pg)
         pb_debug(2, DBG_CREATE, "\n");
 
         /* Create new node and its parents nodes */
-        if ((graph = pg_node_create(pg, graph, *node_name, parents_str)) == NULL) {
+        if ((graph = pb_node_create(pg, graph, *node_name, parents_str)) == NULL) {
             printf("%s(): Failed to create node '%s' or one of its parents", __func__, *node_name);
             pb_log(GP_ERR, "%s(): Failed to create node '%s' or one of its parents", __func__, *node_name);
             g_strfreev(parents_str);
@@ -465,22 +449,23 @@ static GPResult pg_graph_create(GPMain pg)
 
     /* Link childs to parents */
     pb_debug(2, DBG_CREATE, "\n-----\nLink childs to parents\n-----\n");
-    g_list_foreach(graph, pg_node_link_childs_to_parents, graph);
+    g_list_foreach(graph, pb_node_link_childs_to_parents, graph);
 
     /* Link parents to childs */
     pb_debug(2, DBG_CREATE, "\n-----\nLink parents to childs\n-----\n");
-    g_list_foreach(graph, pg_node_link_parents_to_childs, graph);
+    g_list_foreach(graph, pb_node_link_parents_to_childs, graph);
 
     pg->graph = graph;
 
     return GP_OK;
 }
 
+#if 0
 /*
  * TODO See support/scripts/pkg-stats
  * Scan WALK_USEFUL_SUBDIRS and discard WALK_EXCLUDES
  */
-static GPResult br_pkg_list_create(GPMain pg)
+static PBResult br_pkg_list_create(PBMain pg)
 {
     gchar       *topdir;
     const gchar *entry;
@@ -610,8 +595,9 @@ static GPResult br_pkg_list_create(GPMain pg)
 
     return GP_OK;
 }
+#endif
 
-static GPResult pg_th_init_pool(GPMain pg)
+static PBResult pb_th_init_pool(PBMain pg)
 {
     if (!pg)
         return GP_FAIL;
@@ -621,10 +607,26 @@ static GPResult pg_th_init_pool(GPMain pg)
     return GP_OK;
 }
 
-
-GPResult pb_graph_create(GPMain *pbg)
+void pb_graph_free(PBMain pbg)
 {
-    GPMain pg;
+    if (!pbg)
+        return;
+
+    if (pbg->graph) {
+        g_list_free_full(pbg->graph, pb_node_free);
+    }
+
+    if (pbg->th_pool)
+        g_free(pbg->th_pool);
+        /*g_thread_pool_free(pbg->th_pool, TRUE, TRUE);*/
+
+    g_free(pbg);
+}
+
+
+PBResult pb_graph_create(PBMain *pbg)
+{
+    PBMain pg;
 
     pg = g_new0(struct pbuilder_main_st, 1);
     pg->graph = NULL;
@@ -635,37 +637,37 @@ GPResult pb_graph_create(GPMain *pbg)
     else
         pg->cpu_num = cpu_num;
 
-    if (pg_th_init_pool(pg) != GP_OK) {
+    if (pb_th_init_pool(pg) != GP_OK) {
         pb_log(GP_ERR, "Failed to init thread pool");
-        pg_graph_free(pg);
+        pb_graph_free(pg);
         return GP_FAIL;
     }
 
 #if 0
     if (br_pkg_list_create(pg) != GP_OK) {
         pb_log(GP_ERR, "Failed to create list of buildroot package names");
-        pg_graph_free(pg);
+        pb_graph_free(pg);
         return GP_FAIL;
     }
 #endif
 
-    if (pg_graph_create(pg) != GP_OK) {
+    if (pb_graph_create_from_deps_file(pg) != GP_OK) {
         pb_log(GP_ERR, "Failed to create graph");
-        pg_graph_free(pg);
+        pb_graph_free(pg);
         return GP_FAIL;
     }
 
-    if (pg_graph_calc_nodes_priority(pg->graph) != GP_OK) {
+    if (pb_graph_calc_nodes_priority(pg->graph) != GP_OK) {
         pb_log(GP_ERR, "Failed to build graph");
-        pg_graph_free(pg);
+        pb_graph_free(pg);
         return GP_FAIL;
     }
 
-    pg->graph = g_list_sort(pg->graph, pg_graph_order_by_priority);
+    pg->graph = g_list_sort(pg->graph, pb_graph_order_by_priority);
 
     if (debug_level >= 1) {
         pb_debug(1, DBG_ALL, "----- Graph organization -----\n");
-        g_list_foreach(pg->graph, pg_graph_print, NULL);
+        g_list_foreach(pg->graph, pb_graph_print, NULL);
         pb_debug(1, DBG_ALL, "-----\n\n");
     }
 
@@ -674,8 +676,4 @@ GPResult pb_graph_create(GPMain *pbg)
     return GP_OK;
 }
 
-void pb_graph_free(GPMain pg)
-{
-    if (pg)
-        pg_graph_free(pg);
-}
+

@@ -13,6 +13,6 @@
 #include "graph_create.h"
 #include "utils.h"
 
-GPResult    pb_graph_exec(GPMain);
+PBResult    pb_graph_exec(PBMain);
 
 #endif  /* _GRAPH_EXEC_H_ */
