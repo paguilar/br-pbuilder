@@ -63,6 +63,7 @@ struct pbuilder_main_st
     gint64          *th_pool;           /**< Pool of threads of size cpu_num */
     GTimer          *timer;             /**< Timer needed to measure the graph's building time */
     gdouble         elapsed_secs;       /**< Time required to build the whole graph */
+    gboolean        build_error;        /**< An error occurred while building */
 };
 
 PBResult    pb_node_calc_prio(PBNode);

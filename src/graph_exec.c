@@ -20,8 +20,14 @@
 
 static PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
 {
-    gint    ret;
-    GString *cmd;
+    gchar   path[BUFF_8K];
+    FILE    *fp = NULL,
+            *flog = NULL;
+    gint    ret,
+            have_logs = 0,
+			target_build_failed = 0;
+    GString *cmd,
+            *logs;
     GTimer  *timer;
     gdouble elapsed_time;
     gulong  elapsed_usecs = 0;
@@ -34,17 +40,53 @@ static PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
 
     timer = g_timer_new();
 
-    ret = system(cmd->str);
-    if (ret != 0)
-        pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, target);
+    logs = g_string_new("pbuilder_logs");
+
+    g_string_printf(logs, "pbuilder_logs/%s.log", target);
+    if ((flog = fopen(logs->str, "a")) != NULL)
+        have_logs = 1;
+    else
+        pb_log(LOG_ERR, "%s(): fopen(): %s: %s", __func__, logs->str, strerror(errno));
+
+    fp = popen(cmd->str, "r");
+    if (fp == NULL) {
+        pb_log(LOG_ERR, "%s(): Error while building '%s': %s", __func__, target, strerror(errno));
+        printf("%sError while building '%s': %s%s\n", C_RED, target, strerror(errno), C_NORMAL);
+        target_build_failed = 1;
+    }
+    else {
+        while (fgets(path, sizeof(path), fp) != NULL) {
+            if (have_logs)
+                fwrite(path, sizeof(char), strlen(path), flog);
+            if (!strncmp(path, "\E[7m>>>", 7))
+                printf("%s", path);
+        }
+
+        ret = WEXITSTATUS(pclose(fp));
+        if (ret) {
+            pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, target);
+            printf("%sError while building '%s'!\nSee pbuilder_logs/%s.log%s\n", C_RED, target, target, C_NORMAL);
+            target_build_failed = 1;
+        }
+    }
+
+    if (have_logs)
+        fclose(flog);
+
+    g_string_free(logs, TRUE);
 
     g_timer_stop(timer);
     elapsed_time = g_timer_elapsed(timer, &elapsed_usecs);
 
-    printf("Package '%s' built in %f secs\n", target, elapsed_time);
+    if (!target_build_failed)
+        printf("Package '%s' built in %f secs\n", target, elapsed_time);
+
     g_timer_destroy(timer);
 
     g_string_free(cmd, TRUE);
+
+    if (target_build_failed)
+        return PB_FAIL;
 
     return PB_OK;
 }
@@ -239,7 +281,6 @@ static gpointer pb_node_build_th(gpointer data)
                 printf("%s", path);
         }
 
-		/* TODO Handle return status */
         ret = WEXITSTATUS(pclose(fp));
 		if (ret) {
         	pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, node->name->str);
@@ -256,7 +297,9 @@ static gpointer pb_node_build_th(gpointer data)
     g_timer_stop(node->timer);
     node->elapsed_secs = g_timer_elapsed(node->timer, &elapsed_usecs);
 
-	if (!pkg_build_failed)
+    if (pkg_build_failed)
+        node->pg->build_error = TRUE;
+    else
     	printf("%sPackage '%s' built in %f secs%s\n", C_GREEN, node->name->str, node->elapsed_secs, C_NORMAL);
 
     g_timer_destroy(node->timer);
@@ -301,7 +344,7 @@ PBResult pb_graph_exec(PBMain pg)
     pg->timer = g_timer_new();
 
     for (i = 1; i <= prio_num; i++) {
-        printf("%s========== Processing packages with priority %d...%s\n", C_RED, i, C_NORMAL);
+        printf("%s========== Processing packages with priority %d...%s\n", C_GREEN, i, C_NORMAL);
         for (list = pg->graph; list != NULL; list = list->next) {
             node = list->data;
             if (node->priority == i) {
@@ -325,17 +368,32 @@ PBResult pb_graph_exec(PBMain pg)
         }
         printf("\n");
         pb_th_wait_for_all_threads(pg);
+
+        if (pg->build_error) {
+            printf("%sHalting build due to previous errors!%s\n", C_RED, C_NORMAL);
+            break;
+        }
     }
 
-    if (pb_finalize_targets(pg) != PB_OK)
-        pb_log(LOG_ERR, "%s(): Failed to finalize targets", __func__);
+    if (pg->build_error == FALSE) {
+        if (pb_finalize_targets(pg) != PB_OK) {
+            pb_log(LOG_ERR, "%s(): Failed to finalize targets", __func__);
+            printf("%sFailed to finalize targets%s\n", C_RED, C_NORMAL);
+            pg->build_error = TRUE;
+        }
+    }
 
     g_timer_stop(pg->timer);
     pg->elapsed_secs = g_timer_elapsed(pg->timer, &elapsed_usecs);
 
-    printf("%s===== Total elapsed time: %f%s\n", C_RED, pg->elapsed_secs, C_NORMAL);
+    printf("%s===== Total elapsed time: %f%s\n", C_GREEN, pg->elapsed_secs, C_NORMAL);
     g_timer_destroy(pg->timer);
     pg->timer = NULL;
+
+    if (pg->build_error) {
+        printf("%sBuild failed!!!%s\n", C_RED, C_NORMAL);
+        return PB_FAIL;
+    }
 
     return PB_OK;
 }
