@@ -208,6 +208,14 @@ static PBResult pb_th_add_to_pool(PBMain pg, pthread_t *tid, gushort avail_pos)
     return PB_OK;
 }
 
+/**
+ * @brief The thread that builds a node. It uses a pipe to execute 'make <package>' and send all
+ * its output to the logs file pbuilder_logs/<package>.logs. If there's an error, the flag build_error
+ * in the main struct is set and when all the threads in that priority level finish, the calling func
+ * pb_graph_exec() will halt the overall building process.
+ * @param data The node to be built
+ * @return NULL
+ */
 static gpointer pb_node_build_th(gpointer data)
 {
     pthread_t   tid;
@@ -284,7 +292,8 @@ static gpointer pb_node_build_th(gpointer data)
         ret = WEXITSTATUS(pclose(fp));
 		if (ret) {
         	pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, node->name->str);
-    		printf("%sError while building '%s'!\nSee pbuilder_logs/%s.log%s\n", C_RED, node->name->str, node->name->str, C_NORMAL);
+            printf("%sError while building '%s'!\nSee pbuilder_logs/%s.log%s\n",
+                C_RED, node->name->str, node->name->str, C_NORMAL);
 			pkg_build_failed = 1;
 		}
     }
@@ -316,7 +325,12 @@ static gpointer pb_node_build_th(gpointer data)
     return NULL;
 }
 
-void pb_node_get_max_priority(gpointer data, gpointer user_data)
+/**
+ * @brief Get the highest priority in the graph. It's called from a g_list_foreach()
+ * @param data A node
+ * @param user_data An unsigned int variable where the highest priority is saved
+ */
+static void pb_node_get_max_priority(gpointer data, gpointer user_data)
 {
     PBNode node = data;
     guint *max_prio = user_data;
@@ -325,6 +339,13 @@ void pb_node_get_max_priority(gpointer data, gpointer user_data)
         *max_prio = node->priority;
 }
 
+/**
+ * @brief For each priority move across the graph and build the nodes that belong to the current priority.
+ * Assign a CPU core to a single node that has to be built and when it finishes go to the next node and
+ * so on until there are no more nodes with the that priority.
+ * @param pg Main struct
+ * @return PB_OK if successful, PB_FAIL otherwise
+ */
 PBResult pb_graph_exec(PBMain pg)
 {
     GList       *list;

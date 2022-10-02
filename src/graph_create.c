@@ -1,10 +1,10 @@
 /**
  * @file graph_create.c
- * @brief
+ * @brief Functions used for creating the graph and give the build priority
+ * to each node
  *
  * Copyright (C) 2022 Pedro Aguilar <paguilar@paguilar.org>
  * Released under the terms of the GNU GPL v2.0.
- *
  */
 
 #include <stdio.h>
@@ -19,30 +19,6 @@
 #include <glibconfig.h>
 
 #include "graph_create.h"
-
-#if 0
-static gint search_dep_in_br_pkg_list(gconstpointer data, gconstpointer user_data)
-{
-    const GString *pkg_name = data;
-    const gchar   *node_name = user_data;
-
-    /* TODO Remove 'host-' from dep name */
-    if (!strncmp(node_name, "host-", 5)) {
-        if (!strcmp(pkg_name->str, node_name + 5)) {
-            printf("\tMatch %s!!!\n", pkg_name->str);
-            return 0;
-        }
-    }
-    else {
-        if (!strcmp(pkg_name->str, node_name)) {
-            printf("\tMatch %s!!!\n", pkg_name->str);
-            return 0;
-        }
-    }
-
-    return 1;
-}
-#endif
 
 void pb_node_free(gpointer data)
 {
@@ -145,7 +121,6 @@ static void pb_child_calc_prio(gpointer data, gpointer user_data)
     }
 }
 
-#if 1
 static void pb_grandson_calc_prio(gpointer data, gpointer user_data)
 {
     PBNode      child = data;
@@ -166,16 +141,6 @@ PBResult pb_node_calc_prio(PBNode parent)
 
     return PB_OK;
 }
-#else
-static void pb_node_calc_prio(gpointer data, gpointer user_data)
-{
-    PBNode      parent = data;
-
-    printf("%s(): ----------> %s\n", __func__, parent->name->str);
-    g_list_foreach(parent->childs, pb_child_calc_prio, parent);
-
-}
-#endif
 
 static PBResult pb_graph_calc_nodes_priority(GList *graph)
 {
@@ -237,6 +202,12 @@ static PBResult pb_graph_calc_nodes_priority(GList *graph)
     return PB_OK;
 }
 
+/**
+ * @brief Search the name of a node. It's called for each node in the graph
+ * @param a A node in the graph
+ * @param b The name of the node to search for
+ * @return 0 if a node is found, 1 otherwise
+ */
 gint pb_node_find_by_name(gconstpointer a, gconstpointer b)
 {
     const struct pbuilder_node_st *  node = a;
@@ -330,11 +301,20 @@ void pb_node_link_childs_to_parents(gpointer data, gpointer user_data)
     }
 }
 
-static GList * pb_node_create(PBMain pg, GList *graph, gchar *node_name, gchar **parents_str)
+/**
+ * @brief Create a single node and attach it to the graph. Each node represent a package.
+ * Some info is calculated later and it's parents and childs are linked later.
+ * @param pbg Main struct
+ * @param graph The graph
+ * @param node_name The node name
+ * @param parents_str An array with the names of the node parents
+ * @return The node
+ */
+static GList * pb_node_create(PBMain pbg, GList *graph, gchar *node_name, gchar **parents_str)
 {
     PBNode      node;
 
-    if (!pg || !node_name)
+    if (!pbg || !node_name)
         return graph;
 
     /* Check if node already exists */
@@ -355,7 +335,7 @@ static GList * pb_node_create(PBMain pg, GList *graph, gchar *node_name, gchar *
     node->parents_str = parents_str;
     node->parents = NULL;
     node->childs = NULL;
-    node->pg = pg;
+    node->pg = pbg;
     g_rec_mutex_init(&node->mutex);
 
     graph = g_list_append(graph, node);
@@ -365,7 +345,13 @@ static GList * pb_node_create(PBMain pg, GList *graph, gchar *node_name, gchar *
     return graph;
 }
 
-static PBResult pb_graph_create_from_deps_file(PBMain pg)
+/**
+ * @brief For each package in the dependencies file, create a node of the graph
+ * that represents a package and link it to its parents and childs.
+ * @param pbg Main struct
+ * @return PB_OK if successful, PB_FAIL otherwise
+ */
+static PBResult pb_graph_create_from_deps_file(PBMain pbg)
 {
     char            line[BUFF_4K];
     FILE            *fd;
@@ -374,7 +360,7 @@ static PBResult pb_graph_create_from_deps_file(PBMain pg)
     pb_debug(2, DBG_CREATE, "-----\nCreate each single node\n-----\n");
 
     /* Create graph's root node */
-    if ((graph = pb_node_create(pg, graph, "ALL", NULL)) == NULL) {
+    if ((graph = pb_node_create(pbg, graph, "ALL", NULL)) == NULL) {
         printf("%s(): Failed to create root node", __func__);
         pb_log(PB_ERR, "%s(): Failed to create root node", __func__);
         return PB_FAIL;
@@ -417,7 +403,7 @@ static PBResult pb_graph_create_from_deps_file(PBMain pg)
         pb_debug(2, DBG_CREATE, "\n");
 
         /* Create new node and its parents nodes */
-        if ((graph = pb_node_create(pg, graph, *node_name, parents_str)) == NULL) {
+        if ((graph = pb_node_create(pbg, graph, *node_name, parents_str)) == NULL) {
             printf("%s(): Failed to create node '%s' or one of its parents", __func__, *node_name);
             pb_log(PB_ERR, "%s(): Failed to create node '%s' or one of its parents", __func__, *node_name);
             g_strfreev(parents_str);
@@ -438,21 +424,30 @@ static PBResult pb_graph_create_from_deps_file(PBMain pg)
     pb_debug(2, DBG_CREATE, "\n-----\nLink parents to childs\n-----\n");
     g_list_foreach(graph, pb_node_link_parents_to_childs, graph);
 
-    pg->graph = graph;
+    pbg->graph = graph;
 
     return PB_OK;
 }
 
-static PBResult pb_th_init_pool(PBMain pg)
+/**
+ * @brief Create pool of threads. Each thread builds one package at a time.
+ * @param pbg Main struct
+ * @return PB_OK if successful, PB_FAIL otherwise
+ */
+static PBResult pb_th_init_pool(PBMain pbg)
 {
-    if (!pg)
+    if (!pbg)
         return PB_FAIL;
 
-    pg->th_pool = g_new0(gint64, pg->cpu_num);
+    pbg->th_pool = g_new0(gint64, pbg->cpu_num);
 
     return PB_OK;
 }
 
+/**
+ * @brief Free the main graph and free the threads pool
+ * @param pbg Main struct
+ */
 void pb_graph_free(PBMain pbg)
 {
     if (!pbg)
@@ -469,7 +464,12 @@ void pb_graph_free(PBMain pbg)
     g_free(pbg);
 }
 
-
+/**
+ * @brief Create the threads pool, create the graph from the dependencies file
+ * and assign a priority to each node
+ * @param pbg Main struct
+ * @return PB_OK if successful, PB_FAIL otherwise
+ */
 PBResult pb_graph_create(PBMain *pbg)
 {
     PBMain pg;
@@ -488,14 +488,6 @@ PBResult pb_graph_create(PBMain *pbg)
         pb_graph_free(pg);
         return PB_FAIL;
     }
-
-#if 0
-    if (br_pkg_list_create(pg) != PB_OK) {
-        pb_log(PB_ERR, "Failed to create list of buildroot package names");
-        pb_graph_free(pg);
-        return PB_FAIL;
-    }
-#endif
 
     if (pb_graph_create_from_deps_file(pg) != PB_OK) {
         pb_log(PB_ERR, "Failed to create graph");

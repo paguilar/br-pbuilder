@@ -4,7 +4,6 @@
  * 
  * Copyright (C) 2022 Pedro Aguilar <paguilar@paguilar.org>
  * Released under the terms of the GNU GPL v2.0.
- *
  */
 
 #include <stdio.h>
@@ -16,6 +15,9 @@
 
 #include "utils.h"
 
+/**
+ * @brief Get the number of available processor using glib2
+ */
 gushort cpu_get_num()
 {
     return g_get_num_processors();
@@ -35,8 +37,8 @@ void reset_buff(gchar *buff, guint size)
 }
 
 /**
- * @brief
- * @fmt The format string
+ * @brief Print a log according to its level
+ * @param fmt The format string
  */
 void pb_log(PBLogType log_type, gchar *fmt, ...)
 {
@@ -66,9 +68,10 @@ void pb_log(PBLogType log_type, gchar *fmt, ...)
 
 /**
  * @brief Print a string only when debug level is equal or greater than the
- * level given in the command line.
- * @level The debug level
- * @fmt The format string
+ * level given in the cmdline and the module is equal to the module given in the cmdline.
+ * @param level The debug level
+ * @param module The module string
+ * @param fmt The format string
  */
 void pb_debug(guint level, gchar *module, gchar *fmt, ...)
 {
@@ -84,5 +87,4 @@ void pb_debug(guint level, gchar *module, gchar *fmt, ...)
         }
     }
 }   
-
 

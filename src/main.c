@@ -4,7 +4,6 @@
  *
  * Copyright (C) 2022 Pedro Aguilar <paguilar@paguilar.org>
  * Released under the terms of the GNU GPL v2.0.
- *
  */
 
 #include <stdio.h>
