@@ -1,48 +1,58 @@
 
-This program is intended for being executed inside Buildroot for building packages in parallel.
-The task is accomplished using a graph organized in levels. Each node of the graph represents a package to be built and each level contains all the nodes (packages) whose dependencies are nodes of higher level.
+This program is intended for being executed inside Buildroot for building
+packages in parallel.
+The task is accomplished using a graph organized in levels. Each node of the
+graph represents a package to be built and each level contains all the nodes
+(packages) whose dependencies are nodes of higher level.
 
-The graph's root is a package that does not have any dependency on any package and this is the first level. The second level contains packages whose only dependency is the graph's root; the third level contains packages whose dependencies are the packages in the second and first levels; and so on.
+The graph's root is a package that does not have any dependency on any package
+and this is the first level. The second level contains packages whose only
+dependency is the graph's root; the third level contains packages whose
+dependencies are the packages in the second and first levels; and so on.
 
 This example shows a graph organization. Level 1 is considered the highest level.
 Node A is the graph's root, it doesn't have any dependency; therefore is level 1.
 Nodes B and C depend only of node A; therefore are level 2.
-Node D depends on nodes A and B; therefore is level 3, but also nodes E and F are in the same level since their only dependency is node C that is level 2.
-Node G depends on node D that is level 3 and node C that is level 2, since node D is the lowest level, node G must be level 4.
-Node H depends on nodes E and F that are level 3 and node C that is level 2, since nodes E and F are the lowest level, node H must be level 4.
+Node D depends on nodes A and B; therefore is level 3, but also nodes E and F
+are in the same level since their only dependency is node C that is level 2.
+Node G depends on node D that is level 3 and node C that is level 2, since
+node D is the lowest level, node G must be level 4.
+Node H depends on nodes E and F that are level 3 and node C that is level 2,
+since nodes E and F are the lowest level, node H must be level 4.
 
 
-                      ####
-                     #    #
-                     #  A #                              Level 1
-                     #    #
-                      ####
+                     +----+
+                     |    |
+                     |  A |                              Level 1
+                     |    |
+                     +----+
                         |
           -----+--------+---------
           |    |                  |
-        ####   |                ####
-       #    #  |               #    #
-       #  B #  |               #  C #                    Level 2
-       #    #  |               #    #
-        ####   |                ####
+       +----+  |               +----+
+       |    |  |               |    |
+       |  B |  |               |  C |                    Level 2
+       |    |  |               |    |
+       +----+  |               +----+
           |    |                  |
           +----'  -------+--------+------+------
           |       |      |               |     |
-        ####      |    ####            ####    |
-       #    #     |   #    #          #    #   |
-       #  D #     |   #  E #          #  F #   |        Level 3
-       #    #     |   #    #          #    #   |
-        ####      |    ####            ####    |
+       +----+     |   +----+          +----+   |
+       |    |     |   |    |          |    |   |
+       |  D |     |   |  E |          |  F |   |        Level 3
+       |    |     |   |    |          |    |   |
+       +----+     |   +----+          +----+   |
           |       |      |               |     |
           +--------      ----------------+------
           |                              |
-        ####                           ####
-       #    #                         #    #
-       #  G #                         #  H #            Level 4
-       #    #                         #    #
-        ####                           ####
+       +----+                         +----+
+       |    |                         |    |
+       |  G |                         |  H |            Level 4
+       |    |                         |    |
+       +----+                         +----+
 
-This table summarizes the packages names, their dependencies and their levels:
+This table summarizes the packages names, their dependencies and their levels
+of the above example:
 
 Package -> Dependencies -> Level
    A           None          1
@@ -62,7 +72,7 @@ levels.
 Building
 ================================================================================
 
-The recommended method is to build it and use it directly inside Buildroot,
+The recommended method is to do it directly inside Buildroot,
 see the next section.
 
 For building it separately as a normal program use the standard procedure:
@@ -80,12 +90,12 @@ How to use it
 $ cd br-pbuilder
 $ ./scripts/install.sh -b <buildroot_path>
 
-where <buildroot_path> is the path to Buildroot top directory.
+where <buildroot_path> is the path to Buildroot's top directory.
 This script creates symlinks inside the Buildroot sources and patches its main
 Makefile so when invoking this program it knows from where to get the builder
 binary and the script.
 
-Then configure normally Buildroot, something like 'make menuconfig'.
+Then configure Buildroot normally, something like 'make menuconfig'.
 
 Finally from Buildroot's build path invoke the paralell builder:
 
@@ -102,9 +112,4 @@ Known bugs
 ================================================================================
 
 A lot. 
-
-================================================================================
-Feedback and bug reports
-================================================================================
-
 

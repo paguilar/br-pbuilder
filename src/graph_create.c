@@ -431,6 +431,8 @@ static PBResult pb_graph_create_from_deps_file(PBMain pbg)
 
 /**
  * @brief Create pool of threads. Each thread builds one package at a time.
+ * The size of the pool is the "cpu" command line argument or the max number
+ * of available cores
  * @param pbg Main struct
  * @return PB_OK if successful, PB_FAIL otherwise
  */

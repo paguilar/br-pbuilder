@@ -18,6 +18,13 @@
 #include "graph_create.h"
 #include "graph_exec.h"
 
+/**
+ * @brief Execute a single target. This func is used only for the final targets
+ * that are serialized.
+ * @param pg Main struct
+ * @param target String with the BR target name. Eg. target-finalize
+ * @return PB_OK if successful, PB_FAIL otherwise
+ */
 static PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
 {
     gchar   path[BUFF_8K];
@@ -91,6 +98,13 @@ static PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
     return PB_OK;
 }
 
+/**
+ * @brief Execute the last targets that are not packages, but steps that normally used
+ * for creating the filesystem images, FIT images and the like.
+ * These operations are serialized, not in parallel
+ * @param pg Main struct
+ * @return PB_OK if successful, PB_FAIL otherwise
+ */
 static PBResult pb_finalize_targets(PBMain pg)
 {
     if (!pg)
@@ -175,7 +189,12 @@ static gshort pb_th_wait_for_avail_thread(PBMain pg)
     return avail_pos;
 }
 
-
+/**
+ * @brief Remove the thread id from the pool of threads
+ * @param pg The main struct
+ * @param tid Thread id
+ * @return PB_OK if successful, PB_FAIL otherwise
+ */
 static PBResult pb_th_remove_from_pool(PBMain pg, pthread_t *tid)
 {
     gushort i;
@@ -197,6 +216,14 @@ static PBResult pb_th_remove_from_pool(PBMain pg, pthread_t *tid)
     return PB_FAIL;
 }
 
+/**
+ * @brief Add the thread id to the pool of threads in the position that was previosuly
+ * reserved before creating the thread
+ * @param pg The main struct
+ * @param tid Thread id
+ * @param avail_pos Position in the pool of threads
+ * @return PB_OK if successful, PB_FAIL otherwise
+ */
 static PBResult pb_th_add_to_pool(PBMain pg, pthread_t *tid, gushort avail_pos)
 {
     if (!pg || !tid)
