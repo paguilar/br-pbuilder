@@ -253,7 +253,8 @@ static gpointer pb_node_build_th(gpointer data)
 	gint        ret,
     			have_logs = 0,
 				pkg_build_failed = 0;
-    gchar       *configdir;
+    gchar       *configdir,
+                *br2_external;
     gchar       path[BUFF_8K];
     FILE        *fp = NULL,
                 *flog = NULL;
@@ -273,6 +274,12 @@ static gpointer pb_node_build_th(gpointer data)
         return NULL;
     }
 
+    br2_external = getenv("BR2_EXTERNAL");
+    if (!br2_external) {
+        pb_log(LOG_ERR, "%s(): Failed to get environament variable BR2_EXTERNAL", __func__);
+        return NULL;
+    }
+
     tid = pthread_self();
     /* Add thread to pool */
     pb_th_add_to_pool(node->pg, &tid, node->pool_pos);
@@ -282,7 +289,7 @@ static gpointer pb_node_build_th(gpointer data)
 
     cmd = g_string_new(NULL);
     /*g_string_printf(cmd, "make %s 1>/dev/null 2>/dev/null", node->name->str);*/
-    g_string_printf(cmd, "make %s 2>&1", node->name->str);
+    g_string_printf(cmd, "BR2_EXTERNAL=%s make %s 2>&1", br2_external, node->name->str);
     /*g_string_printf(cmd, "%s/brmake %s", configdir, node->name->str);*/
 
     node->timer = g_timer_new();
