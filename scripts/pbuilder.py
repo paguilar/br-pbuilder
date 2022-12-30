@@ -120,16 +120,18 @@ def main():
     if (log_level >= 1):
         print("BR2_CONFIG: ", br2_config_file)
         print("BUILD_DIR: ", br2_build_dir)
-        print("pbuilder: ", pbuilder_bin)
+        print("pbuilder binary: ", pbuilder_bin)
 
     if os.path.isfile(br2_config_file) is False:
         logging.error("Failed to find BR config file: %s", br2_config_file)
         sys.exit(1)
 
     if os.path.isfile(pbuilder_bin) is False or os.access(pbuilder_bin, os.X_OK) is False:
+        curr_path = os.getcwd()
         if pbuilder_compile(pbuilder_path) != 0:
             logging.error("Failed to build pbuilder. Exiting!")
             sys.exit(1)
+        os.chdir(curr_path)
 
     if os.path.isfile(pbuilder_deps_file) is False:
         logging.debug("Dependencies file not found...")
