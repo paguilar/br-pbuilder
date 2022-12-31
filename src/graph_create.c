@@ -179,7 +179,8 @@ static PBResult pb_graph_calc_nodes_priority(GList *graph)
     for (list = graph; list; list = list->next) {
         node = list->data;
         if (node->priority == prio && strcmp(node->name->str, "uclibc")) {
-            pb_debug(1, DBG_CREATE, "Package '%s' has the same priority %d\n", node->name->str, node->priority);
+            pb_debug(1, DBG_CREATE, "Package '%s' has the same priority %d\n",
+                node->name->str, node->priority);
             same_prio = TRUE;
             break;
         }
@@ -193,7 +194,8 @@ static PBResult pb_graph_calc_nodes_priority(GList *graph)
         if (node->priority >= prio) {
             if (strcmp(node->name->str, "uclibc")) {
                 node->priority++;
-                pb_debug(2, DBG_CREATE, "Recalculating '%s' priority to %d\n", node->name->str, node->priority);
+                pb_debug(2, DBG_CREATE, "Recalculating '%s' priority to %d\n",
+                    node->name->str, node->priority);
             }
         }
     }
@@ -234,11 +236,15 @@ static void pb_node_link_single_parent_to_childs(gpointer data, gpointer user_da
 
     pb_debug(2, DBG_CREATE, "Linking parent %s to child %s\n", node->name->str, name_in_graph->name->str);
 
-    child_element = g_list_find_custom(node->childs, name_in_graph->name->str, (GCompareFunc)pb_node_find_by_name);
+    child_element = g_list_find_custom(node->childs,
+        name_in_graph->name->str,
+        (GCompareFunc)pb_node_find_by_name);
     if (child_element)
         return;
 
-    child_element = g_list_find_custom(name_in_graph->graph, name_in_graph->name->str, (GCompareFunc)pb_node_find_by_name);
+    child_element = g_list_find_custom(name_in_graph->graph,
+        name_in_graph->name->str,
+        (GCompareFunc)pb_node_find_by_name);
     if (!child_element)
         return;
 
@@ -287,7 +293,8 @@ void pb_node_link_childs_to_parents(gpointer data, gpointer user_data)
         if (parent_node) {
             /*if (!g_ptr_array_find(node->parents, parent_node, NULL)) {*/
             if (!g_list_find(node->parents, parent_node)) {
-                pb_debug(2, DBG_CREATE, "\tAdding %s as parent of %s\n", parent_node->name->str, node->name->str);
+                pb_debug(2, DBG_CREATE, "\tAdding %s as parent of %s\n",
+                    parent_node->name->str, node->name->str);
                 node->parents = g_list_append(node->parents, parent_node);
             }
         }

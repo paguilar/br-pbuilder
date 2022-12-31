@@ -1,4 +1,6 @@
 
+br-pbuilder (Buildroot parallel builder)
+
 This program is intended for being executed inside Buildroot for building
 packages in parallel.
 The task is accomplished using a graph organized in levels. Each node of the
@@ -27,7 +29,7 @@ since nodes E and F are the lowest level, node H must be level 4.
                      |    |
                      +----+
                         |
-          -----+--------+---------
+          .----+--------+---------.
           |    |                  |
        +----+  |               +----+
        |    |  |               |    |
@@ -35,19 +37,19 @@ since nodes E and F are the lowest level, node H must be level 4.
        |    |  |               |    |
        +----+  |               +----+
           |    |                  |
-          +----'  -------+--------+------+------
+          +----'  .------+--------+------+-----.
           |       |      |               |     |
        +----+     |   +----+          +----+   |
        |    |     |   |    |          |    |   |
-       |  D |     |   |  E |          |  F |   |        Level 3
+       |  D |     |   |  E |          |  F |   |         Level 3
        |    |     |   |    |          |    |   |
        +----+     |   +----+          +----+   |
           |       |      |               |     |
-          +--------      ----------------+------
+          +-------'      '---------------+-----'
           |                              |
        +----+                         +----+
        |    |                         |    |
-       |  G |                         |  H |            Level 4
+       |  G |                         |  H |             Level 4
        |    |                         |    |
        +----+                         +----+
 
@@ -69,11 +71,21 @@ Each package may have one or more dependencies and all of them must be in higher
 levels.
 
 ================================================================================
+Requirements
+================================================================================
+
+All the mandatory packages already required for Buildroot plus the following
+packages that are already required for some Buildroot's targets:
+
+- glib2
+- python (version 3)
+
+================================================================================
 Building
 ================================================================================
 
-The recommended method is to do it directly inside Buildroot,
-see the next section.
+The recommended method is to do it directly inside Buildroot, see the next
+section.
 
 For building it separately as a normal program use the standard procedure:
 
@@ -92,8 +104,8 @@ $ ./scripts/install.sh -b <buildroot_path>
 
 where <buildroot_path> is the path to Buildroot's top directory.
 This script creates symlinks inside the Buildroot sources and patches its main
-Makefile so when invoking this program it knows from where to get the builder
-binary and the script.
+Makefile so when invoking this program it knows from where to get the binary and
+the script.
 
 Then configure Buildroot normally, something like 'make menuconfig'.
 
@@ -105,11 +117,14 @@ $ make pbuilder
 TODO
 ================================================================================
 
-Add support for BR2_EXTERNAL
+Lots of testing.
+Only soem built-in defconfigs and at least a project with a BR2_EXTERNAL were
+tested.
 
 ================================================================================
 Known bugs
 ================================================================================
 
-A lot. 
+A lot.
+Currenlty, it's just a proof of concept.
 

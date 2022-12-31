@@ -1,6 +1,7 @@
 /**
  * @file graph_exec.c
- * @brief
+ * @brief Functions that actually build the packages following the previously set priority
+ * in parallel according to the number of specified cores/threads.
  *
  * Copyright (C) 2022 Pedro Aguilar <paguilar@paguilar.org>
  * Released under the terms of the GNU GPL v2.0.
@@ -72,7 +73,8 @@ static PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
         ret = WEXITSTATUS(pclose(fp));
         if (ret) {
             pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, target);
-            printf("%sError while building '%s'!\nSee pbuilder_logs/%s.log%s\n", C_RED, target, target, C_NORMAL);
+            printf("%sError while building '%s'!\nSee pbuilder_logs/%s.log%s\n",
+                C_RED, target, target, C_NORMAL);
             target_build_failed = 1;
         }
     }
@@ -285,7 +287,7 @@ static gpointer pb_node_build_th(gpointer data)
     pb_th_add_to_pool(node->pg, &tid, node->pool_pos);
 
     /* Exec system() with make? */
-    printf("Thread at position %d is building '%s'\n", node->pool_pos, node->name->str);
+    pb_debug(1, DBG_EXEC, "Thread at position %d is building '%s'\n", node->pool_pos, node->name->str);
 
     cmd = g_string_new(NULL);
     /*g_string_printf(cmd, "make %s 1>/dev/null 2>/dev/null", node->name->str);*/
@@ -407,7 +409,7 @@ PBResult pb_graph_exec(PBMain pg)
 
                 pool_pos = pb_th_get_avail_thread(pg);
                 if (pool_pos < 0) {
-                    printf("All threads are busy, waiting...\n");
+                    pb_debug(1, DBG_EXEC, "All threads are busy, waiting...\n");
                     pool_pos = pb_th_wait_for_avail_thread(pg);
                 }
 

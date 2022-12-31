@@ -52,7 +52,6 @@ def pbuilder_exec(pbuilder_bin, pbuilder_deps_file, log_level):
 
 def pbuilder_compile(pbuilder_path):
     logging.debug("Building in %s", pbuilder_path)
-    print("current dir: ", os.getcwd())
 
     os.chdir(pbuilder_path)
     try:
@@ -115,6 +114,8 @@ def main():
     pbuilder_bin = pbuilder_path + "/src/pbuilder"
     pbuilder_deps_file = ".pbuilder.deps"
 
+    if log_level is None:
+        log_level = 0
     set_log_level(log_level)
 
     if (log_level >= 1):
