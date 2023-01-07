@@ -24,16 +24,18 @@ Installs Buildroot's parallel builder
 
 install()
 {
-    echo "Creating symlinks..."
+    echo "creating symlinks..."
     cd $BR_PATH/utils
-    ln -s $PBUILDER_PATH pbuilder 
+    ln -s $PBUILDER_PATH pbuilder
 
     cd $BR_PATH/support/scripts
     ln -s $PBUILDER_PATH/scripts/pbuilder.py .
 
-    echo "Patching Buildroot Makefile..."
+    echo "patching Buildroot Makefile..."
     cd $BR_PATH
-    patch -p1 < $PBUILDER_PATH/patches/br2_makefile_add_pbuilder.patch
+    for i in `ls $PBUILDER_PATH/patches/*.patch`; do
+        patch -p1 < $i
+    done
 }
 
 remove()
