@@ -28,35 +28,35 @@ Node H depends on nodes E and F that are level 3 and node C that is level 2,
 since nodes E and F are the lowest level, node H must be level 4.
 
 
-                     +----+
+                     .----.
                      |    |
                      |  A |                              Level 1
                      |    |
-                     +----+
+                     '----'
                         |
           .----+--------+---------.
           |    |                  |
-       +----+  |               +----+
+       .----.  |               .----.
        |    |  |               |    |
        |  B |  |               |  C |                    Level 2
        |    |  |               |    |
-       +----+  |               +----+
+       '----'  |               '----'
           |    |                  |
           +----'  .------+--------+------+-----.
           |       |      |               |     |
-       +----+     |   +----+          +----+   |
+       .----.     |   .----.          .----.   |
        |    |     |   |    |          |    |   |
        |  D |     |   |  E |          |  F |   |         Level 3
        |    |     |   |    |          |    |   |
-       +----+     |   +----+          +----+   |
+       '----'     |   '----'          '----'   |
           |       |      |               |     |
           +-------'      '---------------+-----'
           |                              |
-       +----+                         +----+
+       .----.                         .----.
        |    |                         |    |
        |  G |                         |  H |             Level 4
        |    |                         |    |
-       +----+                         +----+
+       '----'                         '----'
 
 This table summarizes the packages names, their levels and their dependencies
 of the above example:
@@ -92,16 +92,12 @@ parallel, all the other steps take place in a serial fashion. Therefore a
 top-level parallel build takes special advantage when executing those steps at
 the same time for different packages.
 
-Buildroot offers this functionality as an experimental feature, but the manual
-warns that it may not work in some scenarios and that has been the case before
-writing this program.
-
 br-pbuilder has been tested in top-level parallel builds of default
 configurations (the *defconfigs in /configs) as well as custom configurations
 with br2-external trees.
 
-As the number of packages increase, as it normally happens with the custom
-configurations, the building times show a greater time reduction with respect to
+As the number of packages increase, as it normally happens with custom
+configurations, the building times show a greater time decrease with respect to
 the default make and brmake.
 
 The table below shows a comparison between br-pbuilder and Buildroot's brmake
@@ -110,10 +106,11 @@ Buildroot.
 The Diff columns show the time it takes for br-pbuilder to build a given
 configuration when compared to brmake.
 
-                             |           Time (s)       |          Diff
+                             |     Building time (s)    |       Time saved
 .----------------------------+--------------------------+----------------------.
-| Buildroot defconfig        | br-pbuilder |   brmake   |  Time (s)  |    %    |
+| Buildroot defconfig        | br-pbuilder |   brmake   |  Seconds   |    %    |
 |----------------------------+-------------+------------+------------+---------|
+| atmel_sama5d3_xplained     | 1014.49     | 1123       | -108.51    | -9.66   |
 | avenger96                  | 1012.47     | 1095       | -82.5      | -7.54   |
 | bananapi_m64               | 1029.86     | 1170       | -140.14    | -11.98  |
 | bananapro                  | 904.11      | 1051       | -146.89    | -13.98  |
@@ -136,24 +133,27 @@ configuration when compared to brmake.
 | warpboard                  | 820.51      | 944        | -123.49    | -13.08  |
 | zynq_zc706                 | 867.18      | 921        | -53.82     | -5.84   |
 |----------------------------+-------------+------------+------------+=========|
-| Average time saving in percentage                                  | -9.47   |
+| Average time saving in percentage                                  | -9.48   |
 '--------------------------------------------------------------------+========='
+
+Some of the above configurations were built more than once, but just the
+average is reported.
 
 The table below shows again a comparison between br-pbuilder and Buildroot's
 brmake when building a custom configuration with +200 packages, many of them
 in a br2-external tree. It was repeated several times just to have an idea of
 the building process releability.
 
-                                |         Time (s)        |         Diff
+                                |     Building time (s)   |       Time saved
 .-------------------------------+-------------------------+--------------------.
-| Custom defconfig              | br-pbuilder |  brmake   | Time (s)  |   %    |
+| Custom defconfig              | br-pbuilder |  brmake   | Seconds   |   %    |
 |-------------------------------+-------------+-----------+-----------+--------|
 | Custom w/ br2-external tree   | 1241        | 1868.66   | -627.66   | -35.58 |
 '---------------------------------------------------------------------+========'
 
-As with all comparisons of this type, it must be taken with a grain of salt.
-Interested people should execute it in their own hardware with their own
-configuration to verify its real performance.
+WARNING: As with most of the comparisons of this type, these ones must be taken
+with a grain of salt. Interested people should execute it in their own hardware
+with their own configuration to verify its real performance.
 
 This configurations were built using an AMD Ryzen 7 5700U with 16 GB of RAM
 under Linux Mint 21 x86_64.
@@ -217,11 +217,18 @@ In order to increase the verbosity during the br-pbuilder execution, add the
 that can be [1-3].
 
 ================================================================================
-Project current status
+Current status
 ================================================================================
 
-As of today, this is just a proof of concept and is not part of the official
-Buildroot project.
+As of today, this is just a proof of concept that has been tested with several
+built-in defconfigs and projects with a br2-external tree using Buildroot's
+stable release 2022.11 and also the master branch of the official repo
+(commit 85a9a3f).
+
+This program is not part of the offical Buildroot project. As a matter of fact,
+Buildroot already offers this functionality as an experimental feature, but the
+manual warns that it may not work in some scenarios and that has been the case
+before writing this program.
 
 This is a small and simple program that at least seems to work with several
 built-in defconfigs and projects with a br2-external tree.
