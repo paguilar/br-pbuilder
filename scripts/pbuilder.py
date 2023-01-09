@@ -145,6 +145,9 @@ def main():
 
         if os.path.getmtime(pbuilder_deps_file) <= os.path.getmtime(br2_config_file):
             logging.debug("Dependencies file is too old. Generating it again...")
+            if generate_deps(pbuilder_deps_file) != 0:
+                logging.error("Failed to recalculate dependencies. Exiting!")
+                sys.exit(1)
 
         logging.debug("No need to update the dependencies file")
 
