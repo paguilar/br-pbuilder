@@ -62,6 +62,12 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    if (access(deps_file, R_OK) != 0) {
+        pb_log(PB_ERR, "Invalid dependencies file: %s", strerror(errno));
+        g_option_context_free(opt_context);
+        return EXIT_FAILURE;
+    }
+
     if (pb_graph_create(&pbg) != PB_OK) {
         pb_log(PB_ERR, "Failed to create graph");
         g_option_context_free(opt_context);
