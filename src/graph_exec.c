@@ -166,7 +166,7 @@ static gshort pb_th_get_avail_thread(PBMain pg)
 
     for (i = 0; i < pg->cpu_num; i++) {
         if (*(pg->th_pool + i) == 0) {
-            pb_debug(2, DBG_EXEC, "Position free: %d", i);
+            pb_debug(2, DBG_EXEC, "Position free: %d\n", i);
             return i;
         }
     }
@@ -249,13 +249,15 @@ static gpointer pb_node_build_th(gpointer data)
 {
     pthread_t   tid;
     PBNode      node = data;
-    GString     *cmd,
+    GString     *pkg_path,
+                *cmd,
                 *logs;
     gulong      elapsed_usecs = 0;
 	gint        ret,
     			have_logs = 0,
 				pkg_build_failed = 0;
-    gchar       *configdir,
+    gchar       *build_dir,
+                *config_dir,
                 *br2_external;
     gchar       path[BUFF_8K];
     FILE        *fp = NULL,
@@ -265,20 +267,26 @@ static gpointer pb_node_build_th(gpointer data)
     if (!node)
         return NULL;
 
-    configdir = getenv("CONFIG_DIR");
-    if (!configdir) {
-        pb_log(LOG_ERR, "%s(): Failed to get environament variable CONFIG_DIR", __func__);
+    build_dir = getenv("BUILD_DIR");
+    if (!build_dir) {
+        pb_log(LOG_ERR, "%s(): Failed to get environment variable BUILD_DIR", __func__);
         return NULL;
     }
 
-    if (chdir(configdir)) {
-        pb_log(LOG_ERR, "%s(): Failed to chdir to %s", __func__, configdir);
+    config_dir = getenv("CONFIG_DIR");
+    if (!config_dir) {
+        pb_log(LOG_ERR, "%s(): Failed to get environment variable CONFIG_DIR", __func__);
+        return NULL;
+    }
+
+    if (chdir(config_dir)) {
+        pb_log(LOG_ERR, "%s(): Failed to chdir to %s", __func__, config_dir);
         return NULL;
     }
 
     br2_external = getenv("BR2_EXTERNAL");
     if (!br2_external) {
-        pb_log(LOG_ERR, "%s(): Failed to get environament variable BR2_EXTERNAL", __func__);
+        pb_log(LOG_ERR, "%s(): Failed to get environment variable BR2_EXTERNAL", __func__);
         return NULL;
     }
 
@@ -286,13 +294,36 @@ static gpointer pb_node_build_th(gpointer data)
     /* Add thread to pool */
     pb_th_add_to_pool(node->pg, &tid, node->pool_pos);
 
+    /* Check if package was already built. If yes, skip it and set it as done */
+    pkg_path = g_string_new(NULL);
+    g_string_printf(pkg_path, "%s/%s", build_dir, node->name->str);
+
+    if (node->version->len > 0)
+        g_string_append_printf(pkg_path, "-%s", node->version->str);
+
+    /*if (sb.st_mode & S_IFDIR) {*/
+    if ((stat(pkg_path->str, &sb) == 0) && S_ISDIR(sb.st_mode)) {
+        g_string_append(pkg_path, "/.stamp_installed");
+        if (stat(pkg_path->str, &sb) == 0) {
+            g_string_free(pkg_path, TRUE);
+            pb_debug(1, DBG_EXEC, "Package '%s' was already built. Skipping!\n", node->name->str);
+            node->elapsed_secs = 0;
+            if (pb_th_remove_from_pool(node->pg, &tid) != PB_OK)
+                pb_log(PB_ERR, "%s(): Failed to remove thread (%lu) from pool!", __func__, tid);
+            node->status = PB_STATUS_DONE;
+            return NULL;
+        }
+    }
+
+    g_string_free(pkg_path, TRUE);
+
     /* Exec system() with make? */
     pb_debug(1, DBG_EXEC, "Thread at position %d is building '%s'\n", node->pool_pos, node->name->str);
 
     cmd = g_string_new(NULL);
     /*g_string_printf(cmd, "make %s 1>/dev/null 2>/dev/null", node->name->str);*/
     g_string_printf(cmd, "BR2_EXTERNAL=%s make %s 2>&1", br2_external, node->name->str);
-    /*g_string_printf(cmd, "%s/brmake %s", configdir, node->name->str);*/
+    /*g_string_printf(cmd, "%s/brmake %s", config_dir, node->name->str);*/
 
     node->timer = g_timer_new();
 

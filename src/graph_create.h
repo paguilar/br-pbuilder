@@ -39,6 +39,7 @@ struct pbuilder_node_name_in_graph_st {
 struct pbuilder_node_st
 {
     GString         *name;              /**< Package name */
+    GString         *version;           /**< Package version */
     PBStatus        status;             /**< Node status */
     gushort         priority;           /**< Indicates when this node has to be built */
     GRecMutex       mutex;              /**< TODO Use it!!! */

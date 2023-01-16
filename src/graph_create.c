@@ -27,6 +27,9 @@ void pb_node_free(gpointer data)
     if (node->name)
         g_string_free(node->name, TRUE);
 
+    if (node->version)
+        g_string_free(node->version, TRUE);
+
     if (node->parents_str)
         g_strfreev(node->parents_str);
 
@@ -55,6 +58,10 @@ void pb_graph_print(gpointer data, gpointer user_data)
         return;
 
     printf("Package: %s%s%s\n", C_GREEN, node->name->str, C_NORMAL);
+    if (node->version->len > 0)
+        printf("\tVersion: %s\n", node->version->str);
+    else
+        printf("\tVersion: -\n");
     printf("\tPriority: %d\n", node->priority);
     printf("\tParents: ");
     g_list_foreach(node->parents, pb_graph_print_node_name, NULL);
@@ -313,22 +320,37 @@ void pb_node_link_childs_to_parents(gpointer data, gpointer user_data)
  * Some info is calculated later and it's parents and childs are linked later.
  * @param pbg Main struct
  * @param graph The graph
- * @param node_name The node name
+ * @param node_info The node name
  * @param parents_str An array with the names of the node parents
  * @return The node
  */
-static GList * pb_node_create(PBMain pbg, GList *graph, gchar *node_name, gchar **parents_str)
+static GList * pb_node_create(PBMain pbg, GList *graph, gchar **node_info)
 {
     PBNode      node;
+    gchar       *node_name,
+                *node_ver,
+                **p,
+                **parents_str = NULL,
+                *parent_list;
 
-    if (!pbg || !node_name)
+    if (!pbg || !node_info)
         return graph;
+
+    node_name = *node_info;
+    node_ver = *(node_info + 1);
+    parent_list = *(node_info + 2);
+
+    printf("%s(): 0\n", __func__);
+    g_strchomp(node_name);
 
     /* Check if node already exists */
     if (g_list_find_custom(graph, node_name, (GCompareFunc)pb_node_find_by_name)) {
         return graph;
     }
 
+    pb_debug(2, DBG_CREATE, "Parsing %s -> ", node_name);
+
+    /* Set node name */
     node = g_new0(struct pbuilder_node_st, 1);
 
     node->name = g_string_new(NULL);
@@ -338,6 +360,27 @@ static GList * pb_node_create(PBMain pbg, GList *graph, gchar *node_name, gchar 
         node->status = PB_STATUS_DONE;
     else 
         node->status = PB_STATUS_PENDING;
+
+    /* Set node version */
+    if (node_ver && strlen(node_ver) > 0) {
+        g_strstrip(node_ver);
+        node->version = g_string_new(NULL);
+        g_string_printf(node->version, "%s", node_ver);
+    }
+    else {
+        node->version = g_string_new(NULL);
+    }
+
+    /* Set node parent list */
+    if (parent_list && strlen(parent_list) > 0) {
+        g_strchug(parent_list);
+        g_strchomp(parent_list);
+
+        parents_str = g_strsplit(parent_list, " ", 0);
+        for (p = parents_str; *p != NULL; p++)
+            pb_debug(2, DBG_CREATE, "%s ", *p);
+        pb_debug(2, DBG_CREATE, "\n");
+    }
 
     node->parents_str = parents_str;
     node->parents = NULL;
@@ -363,11 +406,12 @@ static PBResult pb_graph_create_from_deps_file(PBMain pbg)
     char            line[BUFF_4K];
     FILE            *fd;
     GList           *graph = NULL;
+    gchar           *root_node[] = {"ALL", "", ""};
 
     pb_debug(2, DBG_CREATE, "-----\nCreate each single node\n-----\n");
 
     /* Create graph's root node */
-    if ((graph = pb_node_create(pbg, graph, "ALL", NULL)) == NULL) {
+    if ((graph = pb_node_create(pbg, graph, root_node)) == NULL) {
         printf("%s(): Failed to create root node", __func__);
         pb_log(PB_ERR, "%s(): Failed to create root node", __func__);
         return PB_FAIL;
@@ -381,44 +425,23 @@ static PBResult pb_graph_create_from_deps_file(PBMain pbg)
     memset(line, 0, BUFF_4K);
 
     while (fgets(line, BUFF_4K, fd)) {
-        gchar   **node_name,
-                **parents_str,
-                **p;
-        gchar   *parent_list;
-        /*GList   *pkg_found;*/
+        gchar   **node_info;
 
         if (!strncmp(line, "#", 1))
             continue;
 
-        node_name = g_strsplit(line, ":", 2);
-        /* FIXME: if (node_name == NULL)*/
-
-        g_strchomp(*node_name);
-
-        pb_debug(2, DBG_CREATE, "Processing %s -> ", *node_name);
-
-        parent_list = *(node_name + 1);
-        if (parent_list) {
-            g_strchug(parent_list);
-            g_strchomp(parent_list);
-        }
-
-        parents_str = g_strsplit(parent_list, " ", 0);
-        for (p = parents_str; *p != NULL; p++) {
-            pb_debug(2, DBG_CREATE, "%s ", *p);
-        }
-        pb_debug(2, DBG_CREATE, "\n");
+        /* g_strsplit() doesn't return NULL */
+        node_info = g_strsplit(line, ":", 3);
 
         /* Create new node and its parents nodes */
-        if ((graph = pb_node_create(pbg, graph, *node_name, parents_str)) == NULL) {
-            printf("%s(): Failed to create node '%s' or one of its parents", __func__, *node_name);
-            pb_log(PB_ERR, "%s(): Failed to create node '%s' or one of its parents", __func__, *node_name);
-            g_strfreev(parents_str);
-            g_strfreev(node_name);
+        if ((graph = pb_node_create(pbg, graph, node_info)) == NULL) {
+            printf("%s(): Failed to create node '%s' or one of its parents", __func__, *node_info);
+            pb_log(PB_ERR, "%s(): Failed to create node '%s' or one of its parents", __func__, *node_info);
+            g_strfreev(node_info);
             return PB_FAIL;
         }
 
-        g_strfreev(node_name);
+        g_strfreev(node_info);
     }
 
     fclose(fd);
