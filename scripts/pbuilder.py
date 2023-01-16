@@ -90,8 +90,18 @@ def generate_deps(pbuilder_deps_file):
             if not pkg_name:
                 logging.debug("Skipping: %s", pkg);
                 continue
+
+            pkg_name.strip();
+
             deps[pkg] = pkg_list[pkg].get("dependencies", [])
-            print(pkg, ":", end=" ", file=f)
+
+            pkg_version = pkg_list[pkg].get("version")
+            if pkg_version is None:
+                print(pkg + ": :", end=" ", file=f)
+            else:
+                pkg_version.strip();
+                print(pkg + ": " + pkg_version + ":", end=" ", file=f)
+
             for p in deps[pkg]:
                 print(p, end=" ", file=f)
             print("", file=f)
@@ -140,8 +150,8 @@ def main():
             logging.error("Failed to calculate dependencies. Exiting!")
             sys.exit(1)
     else:
-        logging.debug("'.config' last modified on       %s", time.ctime(os.path.getmtime(br2_config_file)))
-        logging.debug("'.pbuilder.deps last modified on %s", time.ctime(os.path.getmtime(pbuilder_deps_file)))
+        logging.debug("'.config' last modified on        %s", time.ctime(os.path.getmtime(br2_config_file)))
+        logging.debug("'.pbuilder.deps' last modified on %s", time.ctime(os.path.getmtime(pbuilder_deps_file)))
 
         if os.path.getmtime(pbuilder_deps_file) <= os.path.getmtime(br2_config_file):
             logging.debug("Dependencies file is too old. Generating it again...")
