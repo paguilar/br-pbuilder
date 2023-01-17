@@ -22,15 +22,27 @@ typedef enum
 
 typedef struct pbuilder_main_st *               PBMain;
 typedef struct pbuilder_node_st *               PBNode;
+typedef struct pbuilder_env_st *                PBEnv;
 typedef struct pbuilder_node_name_in_graph_st * PBNodeName;
 
 /**
  * Aux struct used for passing parameters while linking
  * parents to childs nodes during the graph creation
  */
-struct pbuilder_node_name_in_graph_st {
+struct pbuilder_node_name_in_graph_st
+{
     GList           *graph;
     GString         *name;
+};
+
+/**
+ * Store some of Buildroot's environment variables passed from the Makefile
+ */
+struct pbuilder_env_st
+{
+    gchar           *build_dir;         /**< BUILD_DIR: Mandatory */
+    gchar           *config_dir;        /**< CONFIG_DIR: Mandatory */
+    gchar           *br2_external;      /**< BR2_EXTERNAL: Optional */
 };
 
 /**
@@ -65,11 +77,12 @@ struct pbuilder_main_st
     GTimer          *timer;             /**< Timer needed to measure the graph's building time */
     gdouble         elapsed_secs;       /**< Time required to build the whole graph */
     gboolean        build_error;        /**< An error occurred while building */
+    PBEnv           env;                /**< Store the environment variables */
 };
 
 PBResult    pb_node_calc_prio(PBNode);
 gint        pb_node_find_by_name(gconstpointer, gconstpointer);
-PBResult    pb_graph_create(PBMain *);
+PBResult    pb_graph_create(PBMain);
 void        pb_graph_free(PBMain);
 
 #endif  /* _GRAPH_CREATE_H_ */

@@ -247,6 +247,7 @@ static PBResult pb_th_add_to_pool(PBMain pg, pthread_t *tid, gushort avail_pos)
  */
 static gpointer pb_node_build_th(gpointer data)
 {
+    PBMain      pg;
     pthread_t   tid;
     PBNode      node = data;
     GString     *pkg_path,
@@ -256,9 +257,6 @@ static gpointer pb_node_build_th(gpointer data)
 	gint        ret,
     			have_logs = 0,
 				pkg_build_failed = 0;
-    gchar       *build_dir,
-                *config_dir,
-                *br2_external;
     gchar       path[BUFF_8K];
     FILE        *fp = NULL,
                 *flog = NULL;
@@ -267,26 +265,11 @@ static gpointer pb_node_build_th(gpointer data)
     if (!node)
         return NULL;
 
-    build_dir = getenv("BUILD_DIR");
-    if (!build_dir) {
-        pb_log(LOG_ERR, "%s(): Failed to get environment variable BUILD_DIR", __func__);
-        return NULL;
-    }
 
-    config_dir = getenv("CONFIG_DIR");
-    if (!config_dir) {
-        pb_log(LOG_ERR, "%s(): Failed to get environment variable CONFIG_DIR", __func__);
-        return NULL;
-    }
+    pg = node->pg;
 
-    if (chdir(config_dir)) {
-        pb_log(LOG_ERR, "%s(): Failed to chdir to %s", __func__, config_dir);
-        return NULL;
-    }
-
-    br2_external = getenv("BR2_EXTERNAL");
-    if (!br2_external) {
-        pb_log(LOG_ERR, "%s(): Failed to get environment variable BR2_EXTERNAL", __func__);
+    if (chdir(pg->env->config_dir)) {
+        pb_log(LOG_ERR, "%s(): Failed to chdir to %s", __func__, pg->env->config_dir);
         return NULL;
     }
 
@@ -296,7 +279,7 @@ static gpointer pb_node_build_th(gpointer data)
 
     /* Check if package was already built. If yes, skip it and set it as done */
     pkg_path = g_string_new(NULL);
-    g_string_printf(pkg_path, "%s/%s", build_dir, node->name->str);
+    g_string_printf(pkg_path, "%s/%s", pg->env->build_dir, node->name->str);
 
     if (node->version->len > 0)
         g_string_append_printf(pkg_path, "-%s", node->version->str);
@@ -322,8 +305,8 @@ static gpointer pb_node_build_th(gpointer data)
 
     cmd = g_string_new(NULL);
     /*g_string_printf(cmd, "make %s 1>/dev/null 2>/dev/null", node->name->str);*/
-    g_string_printf(cmd, "BR2_EXTERNAL=%s make %s 2>&1", br2_external, node->name->str);
-    /*g_string_printf(cmd, "%s/brmake %s", config_dir, node->name->str);*/
+    g_string_printf(cmd, "BR2_EXTERNAL=%s make %s 2>&1", pg->env->br2_external, node->name->str);
+    /*g_string_printf(cmd, "%s/brmake %s", pg->env->config_dir, node->name->str);*/
 
     node->timer = g_timer_new();
 

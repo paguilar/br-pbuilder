@@ -340,7 +340,6 @@ static GList * pb_node_create(PBMain pbg, GList *graph, gchar **node_info)
     node_ver = *(node_info + 1);
     parent_list = *(node_info + 2);
 
-    printf("%s(): 0\n", __func__);
     g_strchomp(node_name);
 
     /* Check if node already exists */
@@ -502,18 +501,10 @@ void pb_graph_free(PBMain pbg)
  * @param pbg Main struct
  * @return PB_OK if successful, PB_FAIL otherwise
  */
-PBResult pb_graph_create(PBMain *pbg)
+PBResult pb_graph_create(PBMain pg)
 {
-    PBMain pg;
-
-    pg = g_new0(struct pbuilder_main_st, 1);
-    pg->graph = NULL;
-    pg->timer = NULL;
-
-    if (cpu_num < 1 || cpu_num > g_get_num_processors())
-        pg->cpu_num = g_get_num_processors();
-    else
-        pg->cpu_num = cpu_num;
+    if (!pg)
+        return PB_FAIL;
 
     if (pb_th_init_pool(pg) != PB_OK) {
         pb_log(PB_ERR, "Failed to init thread pool");
@@ -540,8 +531,6 @@ PBResult pb_graph_create(PBMain *pbg)
         g_list_foreach(pg->graph, pb_graph_print, NULL);
         pb_debug(1, DBG_ALL, "-----\n\n");
     }
-
-    *pbg = pg;
 
     return PB_OK;
 }
