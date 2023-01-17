@@ -23,17 +23,37 @@ gushort cpu_get_num()
     return g_get_num_processors();
 }
 
-/**
- * @brief Clear a buffer with '\\0'
- * @param buff The buffer to be cleared
- * @param size The size of the buffer
- */
-void reset_buff(gchar *buff, guint size)
+void pb_print_ok(gchar *fmt, ...)
 {
-    guint i;
+    va_list ap;
 
-    for (i = 0; i < size; i++)
-        buff[i] = '\0';
+    va_start(ap, fmt);
+    printf("%s", C_GREEN);
+    vprintf(fmt, ap);
+    printf("%s", C_NORMAL);
+    va_end(ap);
+}
+
+void pb_print_warn(gchar *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    printf("%s", C_YELLOW);
+    vprintf(fmt, ap);
+    printf("%s", C_NORMAL);
+    va_end(ap);
+}
+
+void pb_print_err(gchar *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    printf("%s", C_RED);
+    vprintf(fmt, ap);
+    printf("%s", C_NORMAL);
+    va_end(ap);
 }
 
 /**

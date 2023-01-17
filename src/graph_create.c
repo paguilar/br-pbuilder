@@ -411,7 +411,7 @@ static PBResult pb_graph_create_from_deps_file(PBMain pbg)
 
     /* Create graph's root node */
     if ((graph = pb_node_create(pbg, graph, root_node)) == NULL) {
-        printf("%s(): Failed to create root node", __func__);
+        pb_print_err("Failed to create root node");
         pb_log(PB_ERR, "%s(): Failed to create root node", __func__);
         return PB_FAIL;
     }
@@ -434,7 +434,7 @@ static PBResult pb_graph_create_from_deps_file(PBMain pbg)
 
         /* Create new node and its parents nodes */
         if ((graph = pb_node_create(pbg, graph, node_info)) == NULL) {
-            printf("%s(): Failed to create node '%s' or one of its parents", __func__, *node_info);
+            pb_print_err("Failed to create node '%s' or one of its parents", *node_info);
             pb_log(PB_ERR, "%s(): Failed to create node '%s' or one of its parents", __func__, *node_info);
             g_strfreev(node_info);
             return PB_FAIL;

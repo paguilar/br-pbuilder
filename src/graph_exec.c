@@ -59,7 +59,7 @@ static PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
     fp = popen(cmd->str, "r");
     if (fp == NULL) {
         pb_log(LOG_ERR, "%s(): Error while building '%s': %s", __func__, target, strerror(errno));
-        printf("%sError while building '%s': %s%s\n", C_RED, target, strerror(errno), C_NORMAL);
+        pb_print_err("Error while building '%s': %s\n", target, strerror(errno));
         target_build_failed = 1;
     }
     else {
@@ -73,8 +73,7 @@ static PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
         ret = WEXITSTATUS(pclose(fp));
         if (ret) {
             pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, target);
-            printf("%sError while building '%s'!\nSee pbuilder_logs/%s.log%s\n",
-                C_RED, target, target, C_NORMAL);
+            pb_print_err("Error while building '%s'!\nSee pbuilder_logs/%s.log\n", target, target);
             target_build_failed = 1;
         }
     }
@@ -88,7 +87,7 @@ static PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
     elapsed_time = g_timer_elapsed(timer, &elapsed_usecs);
 
     if (!target_build_failed)
-        printf("Package '%s' built in %f secs\n", target, elapsed_time);
+        pb_print_ok("Package '%s' built in %f secs\n", target, elapsed_time);
 
     g_timer_destroy(timer);
 
@@ -265,7 +264,6 @@ static gpointer pb_node_build_th(gpointer data)
     if (!node)
         return NULL;
 
-
     pg = node->pg;
 
     if (chdir(pg->env->config_dir)) {
@@ -289,7 +287,7 @@ static gpointer pb_node_build_th(gpointer data)
         g_string_append(pkg_path, "/.stamp_installed");
         if (stat(pkg_path->str, &sb) == 0) {
             g_string_free(pkg_path, TRUE);
-            pb_debug(1, DBG_EXEC, "Package '%s' was already built. Skipping!\n", node->name->str);
+            pb_print_warn("Package '%s' was already built. Skipping!\n", node->name->str);
             node->elapsed_secs = 0;
             if (pb_th_remove_from_pool(node->pg, &tid) != PB_OK)
                 pb_log(PB_ERR, "%s(): Failed to remove thread (%lu) from pool!", __func__, tid);
@@ -300,16 +298,16 @@ static gpointer pb_node_build_th(gpointer data)
 
     g_string_free(pkg_path, TRUE);
 
-    /* Exec system() with make? */
+    /* Build package by calling make <package> */
     pb_debug(1, DBG_EXEC, "Thread at position %d is building '%s'\n", node->pool_pos, node->name->str);
 
     cmd = g_string_new(NULL);
-    /*g_string_printf(cmd, "make %s 1>/dev/null 2>/dev/null", node->name->str);*/
     g_string_printf(cmd, "BR2_EXTERNAL=%s make %s 2>&1", pg->env->br2_external, node->name->str);
     /*g_string_printf(cmd, "%s/brmake %s", pg->env->config_dir, node->name->str);*/
 
     node->timer = g_timer_new();
 
+    /* Write output to ${BUILD_DIR}/pbuilder_logs/<package>.log */
     logs = g_string_new("pbuilder_logs");
 
     if ((stat(logs->str, &sb) == 0) && S_ISDIR(sb.st_mode))
@@ -327,7 +325,7 @@ static gpointer pb_node_build_th(gpointer data)
     fp = popen(cmd->str, "r");
     if (fp == NULL) {
         pb_log(LOG_ERR, "%s(): Error while building '%s': %s", __func__, node->name->str, strerror(errno));
-    	printf("%sError while building '%s': %s%s\n", C_RED, node->name->str, strerror(errno),  C_NORMAL);
+        pb_print_err("Error while building '%s': %s\n", node->name->str, strerror(errno));
 		/* TODO exit thread*/
 		pkg_build_failed = 1;
 	}
@@ -342,8 +340,7 @@ static gpointer pb_node_build_th(gpointer data)
         ret = WEXITSTATUS(pclose(fp));
 		if (ret) {
         	pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, node->name->str);
-            printf("%sError while building '%s'!\nSee pbuilder_logs/%s.log%s\n",
-                C_RED, node->name->str, node->name->str, C_NORMAL);
+            pb_print_err("Error while building '%s'!\nSee pbuilder_logs/%s.log\n", node->name->str, node->name->str);
 			pkg_build_failed = 1;
 		}
     }
@@ -359,7 +356,7 @@ static gpointer pb_node_build_th(gpointer data)
     if (pkg_build_failed)
         node->pg->build_error = TRUE;
     else
-    	printf("%sPackage '%s' built in %f secs%s\n", C_GREEN, node->name->str, node->elapsed_secs, C_NORMAL);
+        pb_print_ok("Package '%s' built in %f secs\n", node->name->str, node->elapsed_secs);
 
     g_timer_destroy(node->timer);
 
@@ -410,12 +407,13 @@ PBResult pb_graph_exec(PBMain pg)
         return PB_FAIL;
 
     g_list_foreach(pg->graph, pb_node_get_max_priority, &prio_num);
-    pb_debug(1, DBG_ALL, "Number of priorities found: %d\n", prio_num);
+    pb_print_ok("========== Building %u packages organized in %d priorities\n", g_list_length(pg->graph), prio_num);
+    /*pb_debug(1, DBG_ALL, "Number of priorities found: %d\n", prio_num);*/
 
     pg->timer = g_timer_new();
 
     for (i = 1; i <= prio_num; i++) {
-        printf("%s========== Processing packages with priority %d...%s\n", C_GREEN, i, C_NORMAL);
+        pb_print_ok("========== Building packages with priority %d...\n", i);
         for (list = pg->graph; list != NULL; list = list->next) {
             node = list->data;
             if (node->priority == i) {
@@ -441,7 +439,7 @@ PBResult pb_graph_exec(PBMain pg)
         pb_th_wait_for_all_threads(pg);
 
         if (pg->build_error) {
-            printf("%sHalting build due to previous errors!%s\n", C_RED, C_NORMAL);
+            pb_print_err("Halting build due to previous errors!\n");
             break;
         }
     }
@@ -449,7 +447,7 @@ PBResult pb_graph_exec(PBMain pg)
     if (pg->build_error == FALSE) {
         if (pb_finalize_targets(pg) != PB_OK) {
             pb_log(LOG_ERR, "%s(): Failed to finalize targets", __func__);
-            printf("%sFailed to finalize targets%s\n", C_RED, C_NORMAL);
+            pb_print_err("Failed to finalize targets\n");
             pg->build_error = TRUE;
         }
     }
@@ -457,12 +455,12 @@ PBResult pb_graph_exec(PBMain pg)
     g_timer_stop(pg->timer);
     pg->elapsed_secs = g_timer_elapsed(pg->timer, &elapsed_usecs);
 
-    printf("%s===== Total elapsed time: %f%s\n", C_GREEN, pg->elapsed_secs, C_NORMAL);
+    pb_print_ok("===== Total elapsed time: %f\n", pg->elapsed_secs);
     g_timer_destroy(pg->timer);
     pg->timer = NULL;
 
     if (pg->build_error) {
-        printf("%sBuild failed!!!%s\n", C_RED, C_NORMAL);
+        pb_print_err("Build failed!!!\n");
         return PB_FAIL;
     }
 

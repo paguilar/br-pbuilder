@@ -25,7 +25,7 @@ extern gchar   *deps_file;         /**< Filename given in the cmdline */
 extern gint    cpu_num;            /**< Max number of CPU used to build */
 
 #define PBUILDER_NAME   "pbuilder"
-#define PBUILDER_DESC   "Buildroot utility that builds packages in parallel using an acyclic graph"
+#define PBUILDER_DESC   "Top-level parallel building utility for Buildroot that uses an acyclic graph"
 
 #define BUFF_1K         1024
 #define BUFF_4K         4096
@@ -61,7 +61,9 @@ typedef enum
     PB_ERR
 } PBLogType;
 
-void        reset_buff(gchar *, guint);
+void        pb_print_ok(gchar *, ...);
+void        pb_print_warn(gchar *, ...);
+void        pb_print_err(gchar *, ...);
 void        pb_log(PBLogType, gchar *, ...);
 void        pb_debug(guint, gchar *, gchar *, ...);
 
