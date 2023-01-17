@@ -1,22 +1,22 @@
 diff --git a/Makefile b/Makefile
-index 36896684b1..a356bbf556 100644
+index 88f90cd2fa..5d93b51115 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -918,6 +918,13 @@ show-info:
+@@ -921,6 +921,13 @@ show-info:
  		) \
  	)
  
 +.PHONY: pbuilder
 +pbuilder:
 +	@cd $(CONFIG_DIR); \
-+	$(TOPDIR)/support/scripts/pbuilder.py -l 2 $(BR2_CONFIG) $(BUILD_DIR) $(TOPDIR)/utils/pbuilder || \
++	$(TOPDIR)/support/scripts/pbuilder.py $(BR2_CONFIG) $(BUILD_DIR) $(TOPDIR)/utils/pbuilder || \
 +		{ echo "Script $(TOPDIR)/support/scripts/pbuilder.py failed!"; exit 1; }; \
-+	TOPDIR=$(TOPDIR) CONFIG_DIR=$(CONFIG_DIR) BR2_EXTERNAL=$(BR2_EXTERNAL) $(TOPDIR)/utils/pbuilder/src/pbuilder -l 1 -f .pbuilder.deps
++	CONFIG_DIR=$(CONFIG_DIR) BR2_EXTERNAL=$(BR2_EXTERNAL) BUILD_DIR=$(BUILD_DIR) $(TOPDIR)/utils/pbuilder/src/pbuilder -f .pbuilder.deps
 +
  .PHONY: pkg-stats
  pkg-stats:
  	@cd "$(CONFIG_DIR)" ; \
-@@ -1099,6 +1106,7 @@ show-vars:
+@@ -1102,6 +1109,7 @@ show-vars:
  clean:
  	rm -rf $(BASE_TARGET_DIR) $(BINARIES_DIR) $(HOST_DIR) $(HOST_DIR_SYMLINK) \
  		$(BUILD_DIR) $(BASE_DIR)/staging \
