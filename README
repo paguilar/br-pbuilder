@@ -78,7 +78,7 @@ levels.
 Performance
 ================================================================================
 
-Buildroot uses make -jN (or the equivalent invocation for other build systems)
+Buildroot uses 'make' -jN (or the equivalent invocation for other build systems)
 for building in parallel each single package, but each one of them is built
 serially one after another. 
 
@@ -96,15 +96,13 @@ br-pbuilder has been tested in top-level parallel builds of default
 configurations (the *defconfigs in /configs) as well as custom configurations
 with br2-external trees.
 
-As the number of packages increase, as it normally happens with custom
-configurations, the building times show a greater time decrease with respect to
-the default make and brmake.
+As the number of packages increases, as it tends to happen with custom
+configurations, the building time shows a significant time decrease with respect
+to the default 'make' and brmake.
 
 The table below shows a comparison between br-pbuilder and Buildroot's brmake
 when building randomly selected default configurations already provided by
 Buildroot.
-The Diff columns show the time it takes for br-pbuilder to build a given
-configuration when compared to brmake.
 
                              |     Building time (s)    |       Time saved
 .----------------------------+--------------------------+----------------------.
@@ -132,37 +130,28 @@ configuration when compared to brmake.
 | uevm5432                   | 958.93      | 1032       | -73.07     | -7.08   |
 | warpboard                  | 820.51      | 944        | -123.49    | -13.08  |
 | zynq_zc706                 | 867.18      | 921        | -53.82     | -5.84   |
-|----------------------------+-------------+------------+------------+=========|
-| Average time saving in percentage                                  | -9.48   |
-'--------------------------------------------------------------------+========='
+'----------------------------+-------------+------------+------------+---------'
 
-Some of the above configurations were built more than once, but just the
+Some of the above configurations were built more than once and just their
 average is reported.
 
-The table below shows again a comparison between br-pbuilder and Buildroot's
-brmake when building a custom configuration with +200 packages, many of them
-in a br2-external tree. It was repeated several times just to have an idea of
-the building process releability.
+As mentioned before, as the number of packages increase, the overall building
+time is reduced with respect to the serial options. Some tests with custom
+configurations and br2-external trees that include +200 packages have shown
+a ~35% saving time.
 
-                                |     Building time (s)   |       Time saved
-.-------------------------------+-------------------------+--------------------.
-| Custom defconfig              | br-pbuilder |  brmake   | Seconds   |   %    |
-|-------------------------------+-------------+-----------+-----------+--------|
-| Custom w/ br2-external tree   | 1241        | 1868.66   | -627.66   | -35.58 |
-'---------------------------------------------------------------------+========'
+BIG FAT WARNING: As with many comparisons of this type, the above numbers must
+be taken with a grain of salt. Interested people should execute it in their own
+hardware with their own configuration to verify its real performance.
 
-WARNING: As with most of the comparisons of this type, these ones must be taken
-with a grain of salt. Interested people should execute it in their own hardware
-with their own configuration to verify its real performance.
-
-This configurations were built using an AMD Ryzen 7 5700U with 16 GB of RAM
+These configurations were built using an AMD Ryzen 7 5700U with 16 GB of RAM
 under Linux Mint 21 x86_64.
 
 ================================================================================
 Requirements
 ================================================================================
 
-br-pbuilder are a C program, a Python script and standard 'make' files for
+br-pbuilder is a C program, a Python script and standard 'make' files for
 building the C program.
 All its requirements are also mandatory for Buildroot, except the following two
 packages that are optional for Buildroot:
@@ -177,7 +166,9 @@ How to use it
 This program should be invoked as a target from Buildroot's Makefile, therefore
 the main Makefile and some scripts need to be patched.
 
-1. Download the parallel builder.
+1. Download the sources:
+
+https://github.com/paguilar/br-pbuilder.git
 
 2. Patch Buildroot:
 
@@ -186,8 +177,7 @@ $ ./scripts/install.sh -b <buildroot_path>
 
 where <buildroot_path> is the path to Buildroot's top directory.
 This script creates symlinks inside the Buildroot sources and patches its main
-Makefile and some scripts like br2-external, so when invoking this new target
-it knows what to do.
+Makefile and some scripts like br2-external.
 
 4. Configure Buildroot:
 
@@ -209,7 +199,7 @@ pbuilder_logs/<package>.log inside Buildroot's build path.
 
 The 'pbuilder' target executes first the python script that checks that the 
 binary and the dependencies file exist. If the binary is missing, it builds it
-using the host's make tools and gcc. If the dependencies files is missing, it
+using the host's 'make' tools and gcc. If the dependencies file is missing, it
 creates it using the Makefile's 'show-info' target.
 
 In order to increase the verbosity during the br-pbuilder execution, add the
@@ -220,18 +210,16 @@ that can be [1-3].
 Current status
 ================================================================================
 
-As of today, this is just a proof of concept that has been tested with several
-built-in defconfigs and projects with a br2-external tree using Buildroot's
-stable release 2022.11 and also the master branch of the official repo
-(commit 85a9a3f).
+As of today, this is just a small and simple proof of concept that seems to work
+with several built-in defconfigs and projects with a br2-external tree.
+
+It has been tested against Buildroot's stable release 2022.11 and the master
+branch of the official repo (commit 85a9a3f).
 
 This program is not part of the offical Buildroot project. As a matter of fact,
 Buildroot already offers this functionality as an experimental feature, but the
 manual warns that it may not work in some scenarios and that has been the case
 before writing this program.
-
-This is a small and simple program that at least seems to work with several
-built-in defconfigs and projects with a br2-external tree.
 
 It still needs lots of testing and it may not work in some cases or could break
 some Buildroot's rules/guidelines.
