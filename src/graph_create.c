@@ -135,6 +135,9 @@ static void pb_grandson_calc_prio(gpointer data, gpointer user_data)
     pb_node_calc_prio(child);
 }
 
+/**
+ * @brief Use the childs and parents lists of each node to calculate its priority
+ */
 PBResult pb_node_calc_prio(PBNode parent)
 {
     if (!parent)
@@ -169,7 +172,7 @@ static PBResult pb_graph_calc_nodes_priority(GList *graph)
 #endif
 
 #if 1
-    /* Get uclibc priority */
+    /* TODO: Fix uclibc deps so this can be removed? */
     for (list = graph; list; list = list->next) {
         node = list->data;
         if (!strcmp(node->name->str, "uclibc")) {
@@ -261,9 +264,13 @@ static void pb_node_link_single_parent_to_childs(gpointer data, gpointer user_da
 }
 
 /**
- * @brief For each node in main graph
+ * @brief For each node in main graph and for each parent of those nodes,
+ * add to the list of childs of each parent the node in the main graph.
+ * The above two functions do the searching and linking.
+ * @param data One node in the main graph
+ * @param user_data The main graph
  */
-void pb_node_link_parents_to_childs(gpointer data, gpointer user_data)
+void static pb_node_link_parents_to_childs(gpointer data, gpointer user_data)
 {
     PBNode      node = data;
     PBNodeName  name_in_graph;
@@ -277,7 +284,14 @@ void pb_node_link_parents_to_childs(gpointer data, gpointer user_data)
     g_free(name_in_graph);
 }
 
-void pb_node_link_childs_to_parents(gpointer data, gpointer user_data)
+/**
+ * @brief Add to the list of parents of the current node the node of a parent
+ * once the parent's name has been found in the array of strings
+ * (this array contains the names of the parent packages)
+ * @param data The node to which its parents must be linked
+ * @param user_data The main graph
+ */
+static void pb_node_link_childs_to_parents(gpointer data, gpointer user_data)
 {
     GList       *graph = user_data,
                 *parent_element;
@@ -296,7 +310,6 @@ void pb_node_link_childs_to_parents(gpointer data, gpointer user_data)
             continue;
 
         parent_node = (PBNode)parent_element->data;
-
         if (parent_node) {
             /*if (!g_ptr_array_find(node->parents, parent_node, NULL)) {*/
             if (!g_list_find(node->parents, parent_node)) {
