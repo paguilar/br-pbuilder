@@ -119,7 +119,6 @@ static void pb_child_calc_prio(gpointer data, gpointer user_data)
     PBNode      child = data;
     gboolean    all_parents_built = TRUE;
 
-    /*printf("\t%s(): >>>\n", __func__);*/
     g_list_foreach(child->parents, pb_are_parents_ready, &all_parents_built);
 
     if (all_parents_built) {
@@ -136,18 +135,20 @@ static void pb_grandson_calc_prio(gpointer data, gpointer user_data)
 }
 
 /**
- * @brief Use the childs and parents lists of each node to calculate its priority
+ * @brief Move recursively through the graph using the childs list and
+ * calculate each node priority using its parents list
+ * @param node A child node
  */
-PBResult pb_node_calc_prio(PBNode parent)
+PBResult pb_node_calc_prio(PBNode node)
 {
-    if (!parent)
+    if (!node)
         return PB_FAIL;
 
-    pb_debug(3, DBG_CREATE, "%s(): Processing '%s'\n", __func__, parent->name->str);
+    pb_debug(3, DBG_CREATE, "%s(): Processing '%s'\n", __func__, node->name->str);
 
-    g_list_foreach(parent->childs, pb_child_calc_prio, parent);
+    g_list_foreach(node->childs, pb_child_calc_prio, node);
 
-    g_list_foreach(parent->childs, pb_grandson_calc_prio, parent);
+    g_list_foreach(node->childs, pb_grandson_calc_prio, node);
 
     return PB_OK;
 }
