@@ -1,11 +1,11 @@
 #!/bin/bash
 #
-# Adds symlinks inside the Buildroot sources and patches its main Makefile
+# Adds symlinks inside the Buildroot sources and patches some makefiles
 # so when invoking "make pbuilder" it knows from where to get the builder
 # binary and script.
 # The remove option deletes the symlinks and unpatches the Makefile.
 #
-# Copyright (C) 2022 Pedro Aguilar <paguilar@paguilar.org>
+# Copyright (C) 2022-2023 Pedro Aguilar <paguilar@paguilar.org>
 # Released under the terms of the GNU GPL v2.0.
 #
 
@@ -44,9 +44,11 @@ remove()
     rm -f $BR_PATH/utils/pbuilder
     rm -f $BR_PATH/support/scripts/pbuilder.py
 
-    echo "Restoring Buildroot Makefile..."
+    echo "Restoring makefiles..."
     cd $BR_PATH
-    patch -R -p1 < $PBUILDER_PATH/patches/br2_makefile_add_pbuilder.patch
+    for i in `ls $PBUILDER_PATH/patches/*.patch`; do
+        patch -R -p1 < $i
+    done
 }
 
 REMOVE=0
@@ -77,7 +79,12 @@ if [ ! -d "$BR_PATH" ]; then
 fi
 
 PBUILDER_PATH=$(pwd)
-if [ ! -d "$PBUILDER_PATH/src" -o ! -d "$PBUILDER_PATH/scripts" ]; then
+if [ -r "$PBUILDER_PATH/install.sh" ]; then
+    PBUILDER_PATH="$PBUILDER_PATH/.."
+    cd $PBUILDER_PATH
+fi
+
+if [ ! -d "$PBUILDER_PATH/patches" -o ! -d "$PBUILDER_PATH/scripts" ]; then
     echo "Failed to find source or scripts paths."
     echo "Execute this script from the project top dir."
     exit 1
