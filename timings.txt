@@ -1,0 +1,48 @@
+
+br-pbuilder (Buildroot top-level parallel builder)
+
+DISCLAIMER:
+These stats MUST BE considered for personal use and contain a rough estimate of the program
+performance. They're used to have an idea if the program seems to be more efficient than its
+serial alternatives.
+
+As with other comparisons of this type, these stats must be taken with a grain of salt and should
+only provide an idea of the program's capabilities. Interested people should execute it in their
+own hardware with their own configuration to verify its real performance.
+
+The table below shows a comparison between br-pbuilder and Buildroot's brmake when building default
+configurations already provided by Buildroot:
+
+                                     |     Building time (s)    |       Time saved
+        .----------------------------+--------------------------+----------------------.
+        | Buildroot defconfig        | br-pbuilder |   brmake   |  Seconds   |    %    |
+        |----------------------------+-------------+------------+------------+---------|
+        | atmel_sama5d3_xplained     | 1014.49     | 1123       | -108.51    | -9.66   |
+        | avenger96                  | 1012.47     | 1095       | -82.5      | -7.54   |
+        | bananapi_m64               | 1029.86     | 1170       | -140.14    | -11.98  |
+        | bananapro                  | 904.11      | 1051       | -146.89    | -13.98  |
+        | beaglebone_qt5             | 1960.86     | 2198.5     | -237.64    | -10.81  |
+        | ci20                       | 779.42      | 806        | -26.58     | -3.30   |
+        | freescale_imx28evk         | 838.54      | 908        | -69.46     | -7.65   |
+        | imx23evk                   | 777.44      | 881.5      | -104.06    | -11.80  |
+        | imx6ulpico                 | 951.83      | 1041       | -89.17     | -8.57   |
+        | imx8mqevk                  | 1106.8      | 1195       | -88.2      | -7.38   |
+        | microchip_sam9x60ek_mmc    | 824.12      | 935        | -110.88    | -11.86  |
+        | microchip_sama7g5ek_mmc    | 815.85      | 894        | -78.15     | -8.74   |
+        | olimex_a64_olinuxino       | 1226.23     | 1345       | -118.77    | -8.83   |
+        | pine64                     | 1047.74     | 1143       | -95.26     | -8.33   |
+        | qemu_mips32r6el_malta      | 953.44      | 1111       | -157.56    | -14.18  |
+        | qemu_risc64_virt           | 964.61      | 1086       | -121.39    | -11.18  |
+        | qemu_xtensa_lx60           | 909.28      | 1028       | -118.72    | -11.55  |
+        | raspberrypi3_64            | 1215.94     | 1322       | -106.06    | -8.02   |
+        | raspberrypi4_64            | 1251.83     | 1349       | -97.17     | -7.20   |
+        | uevm5432                   | 958.93      | 1032       | -73.07     | -7.08   |
+        | warpboard                  | 820.51      | 944        | -123.49    | -13.08  |
+        | zynq_zc706                 | 867.18      | 921        | -53.82     | -5.84   |
+        '----------------------------+-------------+------------+------------+---------'
+
+Some of the above configurations were built more than once and just their average is reported.
+
+These configurations were built using an AMD Ryzen 7 5700U with 16 GB of RAM under
+Linux Mint 21 x86_64.
+

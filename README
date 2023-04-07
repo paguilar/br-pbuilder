@@ -1,9 +1,8 @@
 
-br-pbuilder (Buildroot top-level parallel builder)
+# br-pbuilder (Buildroot top-level parallel builder)
 
-====================================================================================================
-Overview
-====================================================================================================
+
+## Overview
 
 This program is intended for being called inside Buildroot for executing top-level parallel builds.
 
@@ -57,25 +56,25 @@ are the lowest level, node H must be level 4.
        |    |                         |    |
        '----'                         '----'
 
-This table summarizes the packages names, their levels and their dependencies of the above example:
+This table summarizes the packages names, their levels and their dependencies in the above example:
 
-Package -> Level -> Dependencies
-   A         1          None
-   B         2          A
-   C         2          A
-   D         3          A, B
-   E         3          C
-   F         3          C
-   G         4          C, D
-   H         4          C, E, F
+| Package | Level | Dependencies |
+|---------|-------|--------------|
+|  A      |  1    |     None     |
+|  B      |  2    |     A        |
+|  C      |  2    |     A        |
+|  D      |  3    |     A, B     |
+|  E      |  3    |     C        |
+|  F      |  3    |     C        |
+|  G      |  4    |     C, D     |
+|  H      |  4    |     C, E, F  |
 
 Each package may have one or more dependencies and all of them must be in higher levels.
 
-====================================================================================================
-Performance
-====================================================================================================
 
-Buildroot uses 'make' -jN (or the equivalent invocation for other build systems) for building in
+## Performance
+
+Buildroot uses *make* -jN (or the equivalent invocation for other build systems) for building in
 parallel each single package, but each one of them is built serially one after another. 
 
 A top-level parallel build builds several packages at the same time significantly reducing the
@@ -90,78 +89,41 @@ br-pbuilder has been tested in top-level parallel builds of default configuratio
 in /configs) as well as custom configurations with br2-external trees.
 
 As the number of packages increases, as it tends to happen with custom configurations, the building
-time shows a significant time decrease with respect to the default 'make' and brmake.
+time shows a significant time decrease with respect to the default *make* and brmake.
 
-The table below shows a comparison between br-pbuilder and Buildroot's brmake when building randomly
-selected default configurations already provided by Buildroot:
+br-pbuilder doesn't use a per-package directories mechanism using only the global *target* and
+*host* directories keeping the storage footprint at minimum.
 
-                                     |     Building time (s)    |       Time saved
-        .----------------------------+--------------------------+----------------------.
-        | Buildroot defconfig        | br-pbuilder |   brmake   |  Seconds   |    %    |
-        |----------------------------+-------------+------------+------------+---------|
-        | atmel_sama5d3_xplained     | 1014.49     | 1123       | -108.51    | -9.66   |
-        | avenger96                  | 1012.47     | 1095       | -82.5      | -7.54   |
-        | bananapi_m64               | 1029.86     | 1170       | -140.14    | -11.98  |
-        | bananapro                  | 904.11      | 1051       | -146.89    | -13.98  |
-        | beaglebone_qt5             | 1960.86     | 2198.5     | -237.64    | -10.81  |
-        | ci20                       | 779.42      | 806        | -26.58     | -3.30   |
-        | freescale_imx28evk         | 838.54      | 908        | -69.46     | -7.65   |
-        | imx23evk                   | 777.44      | 881.5      | -104.06    | -11.80  |
-        | imx6ulpico                 | 951.83      | 1041       | -89.17     | -8.57   |
-        | imx8mqevk                  | 1106.8      | 1195       | -88.2      | -7.38   |
-        | microchip_sam9x60ek_mmc    | 824.12      | 935        | -110.88    | -11.86  |
-        | microchip_sama7g5ek_mmc    | 815.85      | 894        | -78.15     | -8.74   |
-        | olimex_a64_olinuxino       | 1226.23     | 1345       | -118.77    | -8.83   |
-        | pine64                     | 1047.74     | 1143       | -95.26     | -8.33   |
-        | qemu_mips32r6el_malta      | 953.44      | 1111       | -157.56    | -14.18  |
-        | qemu_risc64_virt           | 964.61      | 1086       | -121.39    | -11.18  |
-        | qemu_xtensa_lx60           | 909.28      | 1028       | -118.72    | -11.55  |
-        | raspberrypi3_64            | 1215.94     | 1322       | -106.06    | -8.02   |
-        | raspberrypi4_64            | 1251.83     | 1349       | -97.17     | -7.20   |
-        | uevm5432                   | 958.93      | 1032       | -73.07     | -7.08   |
-        | warpboard                  | 820.51      | 944        | -123.49    | -13.08  |
-        | zynq_zc706                 | 867.18      | 921        | -53.82     | -5.84   |
-        '----------------------------+-------------+------------+------------+---------'
 
-WARNING: As with many comparisons of this type, the above numbers must be taken with a grain of
-salt and should only provide an idea of the program's capabilities. Interested people should
-execute it in their own hardware with their own configuration to verify its real performance.
+## Requirements
 
-As mentioned before, as the number of packages increase, the overall building time is reduced with
-respect to the serial options. Some tests with custom configurations and br2-external trees that
-include +200 packages have shown a ~35% saving time.
-
-Some of the above configurations were built more than once and just their average is reported.
-They were built using an AMD Ryzen 7 5700U with 16 GB of RAM under Linux Mint 21 x86_64.
-
-====================================================================================================
-Requirements
-====================================================================================================
-
-br-pbuilder is a C program, a Python script and standard 'make' files for building the C program.
+br-pbuilder is a C program, a Python script and standard *make* files for building the C program.
 All its requirements are also mandatory for Buildroot, except the following two packages that are
 optional for Buildroot:
 
 - glib2
 - python (version 3)
 
-====================================================================================================
-How to use it
-====================================================================================================
+
+## How to use it
 
 This program should be invoked as a target from Buildroot's Makefile, therefore the main Makefile
 and some scripts need to be patched.
 
 1. Download the sources:
 
-https://github.com/paguilar/br-pbuilder.git
+```
+git clone https://github.com/paguilar/br-pbuilder.git
+```
 
 2. Patch Buildroot:
 
+```
 $ cd br-pbuilder
 $ ./scripts/install.sh -b <buildroot_path>
+```
 
-where <buildroot_path> is the path to Buildroot's top directory.
+where *<buildroot_path>* is the path to Buildroot's top directory.
 This script creates symlinks inside the Buildroot sources and patches its main Makefile and some
 scripts like br2-external.
 
@@ -174,29 +136,30 @@ configuration methods such as 'make <defconfig>' or just something like 'make me
 
 From Buildroot's build path invoke the parallel builder:
 
+```
 $ make pbuilder
+```
 
 That's it. At this point the output of the main building steps of each package are displayed
 organized by priority along with the total building time of each package and at the end the total
 building time of the whole configuration. The complete output of each package and its errors, if
 any, can be found in pbuilder_logs/<package>.log inside Buildroot's build path.
 
-The 'pbuilder' target executes first the python script that checks that the binary and the
-dependencies file exist. If the binary is missing, it builds it using the host's 'make' tools and
-gcc. If the dependencies file is missing, it creates it using the Makefile's 'show-info' target.
+The *pbuilder* target executes first the python script that checks that the binary and the
+dependencies file exist. If the binary is missing, it builds it. If the dependencies file is
+missing, it creates it using the Makefile's *show-info* target.
 
 In order to increase the verbosity during the br-pbuilder execution, add the -l N cmdline arg in
 the Makefile target where it's invoked. N is the debug level that can be [1-3].
 
-====================================================================================================
-Current status
-====================================================================================================
+
+## Current status
 
 As of today, this is just a simple proof of concept that seems to work with several built-in
 defconfigs and projects with a br2-external tree.
 
-It has been tested against Buildroot's stable release 2022.11 and the master branch of the official
-repo (30/01/2023 - commit aff431).
+It has been tested against Buildroot's stable release 2022.11 and recent commits of the master
+branch of the official repo.
 
 This program is not part of the offical Buildroot project. As a matter of fact, Buildroot already
 offers this functionality as an experimental feature, but the manual warns that it may not work in
