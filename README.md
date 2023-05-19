@@ -4,7 +4,8 @@
 
 ## Overview
 
-This program is intended for being called inside Buildroot for executing top-level parallel builds.
+This program is intended for being called inside Buildroot as any other *make* target for executing
+top-level parallel builds.
 
 The task is accomplished using a graph organized in levels. Each node of the graph represents a
 package to be built and each level contains all the nodes (packages) whose dependencies are nodes of
@@ -74,6 +75,10 @@ Each package may have one or more dependencies and all of them must be in higher
 
 ## Performance
 
+A relevant characteristic of br-pbuilder is that it doesn't use a per-package directories mechanism
+using only the global *target* and *host* directories keeping the storage footprint exactly the
+same as with the traditional serial build.
+
 Buildroot uses *make* -jN (or the equivalent invocation for other build systems) for building in
 parallel each single package, but each one of them is built serially one after another. 
 
@@ -89,17 +94,13 @@ br-pbuilder has been tested in top-level parallel builds of default configuratio
 in /configs) as well as custom configurations with br2-external trees.
 
 As the number of packages increases, as it tends to happen with custom configurations, the building
-time shows a significant time decrease with respect to the default *make* and brmake.
-
-br-pbuilder doesn't use a per-package directories mechanism using only the global *target* and
-*host* directories keeping the storage footprint at minimum.
+time shows a significant time decrease with respect to the default *make* and *brmake*.
 
 
 ## Requirements
 
-br-pbuilder is a C program, a Python script and standard *make* files for building the C program.
-All its requirements are also mandatory for Buildroot, except the following two packages that are
-optional for Buildroot:
+br-pbuilder is a C program and a Python script. All its requirements are also mandatory for
+Buildroot, except the following two packages that are optional for Buildroot:
 
 - glib2
 - python (version 3)
@@ -107,16 +108,31 @@ optional for Buildroot:
 
 ## How to use it
 
-This program should be invoked as a target from Buildroot's Makefile, therefore the main Makefile
-and some scripts need to be patched.
+There are two alternatives:
 
-1. Download the sources:
+1. Download the fork of Buildroot that already includes br-pbuilder
+2. Patch Buildroot if it was previously downloaded
+
+### Download the fork of Buildroot
+
+Download it from this [link] (https://github.com/paguilar/buildroot) and when building,
+instead of using *make*, use *make pbuilder*.
+
+### Patch Buildroot
+
+If Buildroot is already present in the host, follow these steps to use br-pbuilder with the current
+installation.
+
+1. Download br-pbuilder:
 
 ```
 git clone https://github.com/paguilar/br-pbuilder.git
 ```
 
 2. Patch Buildroot:
+
+Since br-pbuilder is invoked as a target from Buildroot's Makefile, the main Makefile and some
+scripts need to be patched.
 
 ```
 $ cd br-pbuilder
@@ -130,7 +146,7 @@ scripts like br2-external.
 4. Configure Buildroot:
 
 The Buildroot configuration remains exactly the same, nothing has been touched here. Use any of the
-configuration methods such as 'make <defconfig>' or just something like 'make menuconfig'.
+configuration methods such as *make <defconfig>* or just something like *make menuconfig*.
 
 5. Execute the parallel builder:
 
@@ -150,7 +166,7 @@ dependencies file exist. If the binary is missing, it builds it. If the dependen
 missing, it creates it using the Makefile's *show-info* target.
 
 In order to increase the verbosity during the br-pbuilder execution, add the -l N cmdline arg in
-the Makefile target where it's invoked. N is the debug level that can be [1-3].
+Buildroot's main *Makefile*. N is the debug level that can be [1-3].
 
 
 ## Current status
@@ -158,15 +174,16 @@ the Makefile target where it's invoked. N is the debug level that can be [1-3].
 As of today, this is just a simple proof of concept that seems to work with several built-in
 defconfigs and projects with a br2-external tree.
 
-It has been tested against Buildroot's stable release 2022.11 and recent commits of the master
-branch of the official repo.
+It has been tested against Buildroot's stable release 2022.11 and the master branch of the official
+repo.
 
 This program is not part of the offical Buildroot project. As a matter of fact, Buildroot already
 offers this functionality as an experimental feature, but the manual warns that it may not work in
-some scenarios and that has been the case before writing this program.
+some scenarios and that has been the case before writing this program and it also requires much
+more storage space since it uses the per-package directory building option.
 
-It still needs lots of testing and it may not work in some cases or could break some Buildroot's
-rules/guidelines.
+br-pbuilder still needs lots of testing and it may not work in some cases or could break some
+Buildroot's rules/guidelines.
 
 Any help and bug fixes are welcome!
 
