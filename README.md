@@ -115,7 +115,7 @@ There are two alternatives:
 
 ### Download the fork of Buildroot
 
-Download it from this [link] (https://github.com/paguilar/buildroot) and when building,
+Download it from this [link](https://github.com/paguilar/buildroot) and when building,
 instead of using *make*, use *make pbuilder*.
 
 ### Patch Buildroot
