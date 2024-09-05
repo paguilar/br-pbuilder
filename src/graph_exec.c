@@ -20,6 +20,34 @@
 #include "graph_exec.h"
 
 /**
+ * @brief Calculate the number of packages that belong to the same priority
+ * @param pg Main struct
+ * @param cur_prio The current priority
+ * @return The number of packages in the given priority
+ */
+static guint pb_get_pkg_num_by_prio(PBMain pg, guint cur_prio)
+{
+    GList   *list;
+    gint    pkg_num_by_prio = 0;
+
+    if (!pg)
+        return pkg_num_by_prio;
+
+    if (!pg->graph)
+        return pkg_num_by_prio;
+
+    list = pg->graph;
+    while (list) {
+        PBNode  node = (PBNode)list->data;
+        if (node->priority == cur_prio)
+            pkg_num_by_prio++;
+        list = list->next;
+    }
+
+    return pkg_num_by_prio;
+}
+
+/**
  * @brief Execute a single target. This func is used only for the final targets
  * that are serialized.
  * @param pg Main struct
@@ -397,6 +425,7 @@ PBResult pb_graph_exec(PBMain pg)
 {
     GList       *list;
     guint       i,
+                pkg_num_by_prio,
                 prio_num = 0;
     gshort      pool_pos;
     PBNode      node;
@@ -413,7 +442,12 @@ PBResult pb_graph_exec(PBMain pg)
     pg->timer = g_timer_new();
 
     for (i = 1; i <= prio_num; i++) {
-        pb_print_ok("========== Building packages with priority %d...\n", i);
+        pkg_num_by_prio = pb_get_pkg_num_by_prio(pg, i);
+        if (pkg_num_by_prio > 0)
+            pb_print_ok("========== Building %d packages with priority %d...\n", pkg_num_by_prio, i);
+        else
+            pb_print_ok("========== Building packages with priority %d...\n", i);
+
         for (list = pg->graph; list != NULL; list = list->next) {
             node = list->data;
             if (node->priority == i) {
