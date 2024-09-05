@@ -1,5 +1,5 @@
 
-# br-pbuilder (Buildroot top-level parallel builder)
+# br-pbuilder (A Buildroot top-level parallel builder)
 
 
 ## Overview
@@ -91,7 +91,7 @@ place in a serial fashion. Therefore a top-level parallel build takes special ad
 executing those steps at the same time for different packages.
 
 br-pbuilder has been tested in top-level parallel builds of default configurations (the *defconfigs
-in /configs) as well as custom configurations with br2-external trees.
+in */configs*) as well as custom configurations with br2-external trees.
 
 As the number of packages increases, as it tends to happen with custom configurations, the building
 time shows a significant time decrease with respect to the default *make* and *brmake*.
@@ -174,7 +174,7 @@ Buildroot's main *Makefile*. N is the debug level that can be [1-3].
 As of today, this is just a simple proof of concept that seems to work with several built-in
 defconfigs and projects with a br2-external tree.
 
-It has been tested against Buildroot's stable release 2022.11 and the master branch of the official
+It has been tested against Buildroot's latest stable releases and master branch of the official
 repo.
 
 This program is not part of the offical Buildroot project. As a matter of fact, Buildroot already

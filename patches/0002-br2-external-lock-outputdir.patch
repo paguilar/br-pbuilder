@@ -14,7 +14,7 @@ index 2c33e6eacc..41cb4b6ab5 100755
 +        do_validate "${outputdir}" ${@//:/ };
 +        do_mk "${outputdir}";
 +        do_kconfig "${outputdir}";
-+    } 3>filename
++    } 3>.pbuilder-br2-external-lock
  }
  
  # Validates the br2-external trees passed as arguments. Makes each of
