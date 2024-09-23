@@ -72,7 +72,7 @@ static PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
         return PB_FAIL;
 
     cmd = g_string_new(NULL);
-    g_string_printf(cmd, "make %s 1>/dev/null 2>/dev/null", target);
+    g_string_printf(cmd, "BR2_EXTERNAL=%s make %s 2>&1", pg->env->br2_external, target);
 
     timer = g_timer_new();
 
