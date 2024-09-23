@@ -381,8 +381,10 @@ static gpointer pb_node_build_th(gpointer data)
     g_timer_stop(node->timer);
     node->elapsed_secs = g_timer_elapsed(node->timer, &elapsed_usecs);
 
-    if (pkg_build_failed)
+    if (pkg_build_failed) {
         node->pg->build_error = TRUE;
+        node->build_failed = TRUE;
+    }
     else
         pb_print_ok("Package '%s' built in %f secs\n", node->name->str, node->elapsed_secs);
 
@@ -495,6 +497,13 @@ PBResult pb_graph_exec(PBMain pg)
 
     if (pg->build_error) {
         pb_print_err("Build failed!!!\n");
+        pb_print_err("See pbuilder_logs/<pkg>.log for further info.\n");
+        pb_print_err("The following packages gave an error:\n");
+        for (list = pg->graph; list != NULL; list = list->next) {
+            node = list->data;
+            if (node->build_failed)
+                pb_print_err("%s\n", node->name->str);
+        }
         return PB_FAIL;
     }
 

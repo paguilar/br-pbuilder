@@ -63,6 +63,7 @@ struct pbuilder_node_st
     PBMain          pg;                 /**< Pointer to the main struct */
     GTimer          *timer;             /**< Timer needed to measure the node's building time */
     gdouble         elapsed_secs;       /**< Time required to build this node */
+    gboolean        build_failed;       /**< Indicates that the package could not be built */
 };
 
 /**
