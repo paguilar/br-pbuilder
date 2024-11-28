@@ -54,8 +54,6 @@ struct pbuilder_node_st
     GString         *version;           /**< Package version */
     PBStatus        status;             /**< Node status */
     gushort         priority;           /**< Indicates when this node has to be built */
-    GRecMutex       mutex;              /**< TODO Use it!!! */
-    GCond           *cond;
     gchar           **parents_str;      /**< List of strings that contain the package parents */
     GList           *parents;           /**< List that points to this node's parents */
     GList           *childs;            /**< List that points to this node's children */
@@ -74,7 +72,7 @@ struct pbuilder_main_st
     GList           *graph;             /**< Graph used to build */
     GList           *br_pkg_list;       /**< List of buildroot package names */
     gushort         cpu_num;            /**< Number of CPUs that determine the number of threads used to build */
-    gint64          *th_pool;           /**< Pool of threads of size cpu_num */
+    GThreadPool     *th_pool;           /**< Pool of threads of size cpu_num */
     GTimer          *timer;             /**< Timer needed to measure the graph's building time */
     gdouble         elapsed_secs;       /**< Time required to build the whole graph */
     gboolean        build_error;        /**< An error occurred while building */
@@ -85,5 +83,6 @@ PBResult    pb_node_calc_prio(PBNode);
 gint        pb_node_find_by_name(gconstpointer, gconstpointer);
 PBResult    pb_graph_create(PBMain);
 void        pb_graph_free(PBMain);
+void        pb_node_build_th(gpointer, gpointer);
 
 #endif  /* _GRAPH_CREATE_H_ */

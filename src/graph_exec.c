@@ -76,9 +76,9 @@ static PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
 
     timer = g_timer_new();
 
-    logs = g_string_new("pbuilder_logs");
+    logs = g_string_new(NULL);
+    g_string_printf(logs, "%s/pbuilder_logs/%s.log", pg->env->config_dir, target);
 
-    g_string_printf(logs, "pbuilder_logs/%s.log", target);
     if ((flog = fopen(logs->str, "a")) != NULL)
         have_logs = 1;
     else
@@ -165,103 +165,12 @@ static PBResult pb_finalize_targets(PBMain pg)
 
 static void pb_th_wait_for_all_threads(PBMain pg)
 {
-    gushort i,
-            th_total;
-
     while (1) {
-        th_total = 0;
-
-        for (i = 0; i < pg->cpu_num; i++) {
-            if (*(pg->th_pool + i) == 0) {
-                th_total++;
-            }
-        }
-
-        if (th_total >= pg->cpu_num)
+        if (!g_thread_pool_get_num_threads(pg->th_pool))
             break;
 
-        usleep(250000);
+        sleep(1);
     }
-}
-
-static gshort pb_th_get_avail_thread(PBMain pg)
-{
-    gushort i;
-
-    if (!pg)
-        return -1;
-
-    for (i = 0; i < pg->cpu_num; i++) {
-        if (*(pg->th_pool + i) == 0) {
-            pb_debug(2, DBG_EXEC, "Position free: %d\n", i);
-            return i;
-        }
-    }
-
-    /*printf("No available position found\n");*/
-    return -1;
-}
-
-
-static gshort pb_th_wait_for_avail_thread(PBMain pg)
-{
-    gshort avail_pos = -1;
-
-    if (!pg)
-        return avail_pos;
-
-    while ((avail_pos = pb_th_get_avail_thread(pg)) < 0) {
-        /*printf("    %s(): Waiting...\n", __func__);*/
-        usleep(250000);
-    }
-
-    return avail_pos;
-}
-
-/**
- * @brief Remove the thread id from the pool of threads
- * @param pg The main struct
- * @param tid Thread id
- * @return PB_OK if successful, PB_FAIL otherwise
- */
-static PBResult pb_th_remove_from_pool(PBMain pg, pthread_t *tid)
-{
-    gushort i;
-
-    if (!pg || !tid)
-        return PB_FAIL;
-
-    for (i = 0; i < pg->cpu_num; i++) {
-        /*printf("Comparing %lu - %lu\n", *(pg->th_pool + i), *tid);*/
-        if (*(pg->th_pool + i) == *tid) {
-            pb_debug(2, DBG_EXEC, "Freeing thread at position %d\n", i);
-            *(pg->th_pool + i) = 0;
-            return PB_OK;
-        }
-    }
-
-    pb_log(PB_ERR, "Trying to remove unregister thread %lu\n", *tid);
-
-    return PB_FAIL;
-}
-
-/**
- * @brief Add the thread id to the pool of threads in the position that was previosuly
- * reserved before creating the thread
- * @param pg The main struct
- * @param tid Thread id
- * @param avail_pos Position in the pool of threads
- * @return PB_OK if successful, PB_FAIL otherwise
- */
-static PBResult pb_th_add_to_pool(PBMain pg, pthread_t *tid, gushort avail_pos)
-{
-    if (!pg || !tid)
-        return PB_FAIL;
-
-    *(pg->th_pool + avail_pos) = *tid;
-    pb_debug(2, DBG_EXEC, "Thread %lu assigned to position %d\n", *tid, avail_pos);
-
-    return PB_OK;
 }
 
 /**
@@ -272,11 +181,10 @@ static PBResult pb_th_add_to_pool(PBMain pg, pthread_t *tid, gushort avail_pos)
  * @param data The node to be built
  * @return NULL
  */
-static gpointer pb_node_build_th(gpointer data)
+void pb_node_build_th(gpointer data, gpointer user_data)
 {
-    PBMain      pg;
-    pthread_t   tid;
-    PBNode      node = data;
+    PBMain      pg = (PBMain)user_data;
+    PBNode      node = (PBNode)data;
     GString     *pkg_path,
                 *cmd,
                 *logs;
@@ -289,19 +197,8 @@ static gpointer pb_node_build_th(gpointer data)
                 *flog = NULL;
     struct stat sb;
 
-    if (!node)
-        return NULL;
-
-    pg = node->pg;
-
-    if (chdir(pg->env->config_dir)) {
-        pb_log(LOG_ERR, "%s(): Failed to chdir to %s", __func__, pg->env->config_dir);
-        return NULL;
-    }
-
-    tid = pthread_self();
-    /* Add thread to pool */
-    pb_th_add_to_pool(node->pg, &tid, node->pool_pos);
+    if (!pg || !node)
+        return;
 
     /* Check if package was already built. If yes, skip it and set it as done */
     pkg_path = g_string_new(NULL);
@@ -317,38 +214,29 @@ static gpointer pb_node_build_th(gpointer data)
             g_string_free(pkg_path, TRUE);
             pb_print_warn("Package '%s' was already built. Skipping!\n", node->name->str);
             node->elapsed_secs = 0;
-            if (pb_th_remove_from_pool(node->pg, &tid) != PB_OK)
-                pb_log(PB_ERR, "%s(): Failed to remove thread (%lu) from pool!", __func__, tid);
             node->status = PB_STATUS_DONE;
-            return NULL;
+            return;
         }
     }
 
     g_string_free(pkg_path, TRUE);
 
-    /* Build package by calling make <package> */
     pb_debug(1, DBG_EXEC, "Thread at position %d is building '%s'\n", node->pool_pos, node->name->str);
-
-    cmd = g_string_new(NULL);
-    g_string_printf(cmd, "BR2_EXTERNAL=%s make %s 2>&1", pg->env->br2_external, node->name->str);
-    /*g_string_printf(cmd, "%s/brmake %s", pg->env->config_dir, node->name->str);*/
 
     node->timer = g_timer_new();
 
-    /* Write output to ${BUILD_DIR}/pbuilder_logs/<package>.log */
-    logs = g_string_new("pbuilder_logs");
-
-    if ((stat(logs->str, &sb) == 0) && S_ISDIR(sb.st_mode))
-        have_logs = 1;
-    else
-        if (mkdir(logs->str, S_IRWXU) != 0)
-            pb_log(LOG_DEBUG, "%s(): mkdir(): %s: %s", __func__, logs->str, strerror(errno));
-
-    g_string_printf(logs, "pbuilder_logs/%s.log", node->name->str);
+    /* Write output to ${CONFIG_DIR}/pbuilder_logs/<package>.log */
+    logs = g_string_new(NULL);
+    g_string_printf(logs, "%s/pbuilder_logs/%s.log", pg->env->config_dir, node->name->str);
     if ((flog = fopen(logs->str, "a")) != NULL)
         have_logs = 1;
     else
         pb_log(LOG_ERR, "%s(): fopen(): %s: %s", __func__, logs->str, strerror(errno));
+
+    /* Build package by calling make <package> */
+    cmd = g_string_new(NULL);
+    g_string_printf(cmd, "BR2_EXTERNAL=%s make %s 2>&1", pg->env->br2_external, node->name->str);
+    /*g_string_printf(cmd, "%s/brmake %s", pg->env->config_dir, node->name->str);*/
 
     fp = popen(cmd->str, "r");
     if (fp == NULL) {
@@ -392,14 +280,9 @@ static gpointer pb_node_build_th(gpointer data)
 
     g_string_free(cmd, TRUE);
 
-    /* Remove thread from pool */
-    if (pb_th_remove_from_pool(node->pg, &tid) != PB_OK) {
-        pb_log(PB_ERR, "%s(): Failed to remove thread (%lu) from pool!", __func__, tid);
-    }
-
     node->status = PB_STATUS_DONE;
 
-    return NULL;
+    return;
 }
 
 /**
@@ -429,17 +312,27 @@ PBResult pb_graph_exec(PBMain pg)
     guint       i,
                 pkg_num_by_prio,
                 prio_num = 0;
-    gshort      pool_pos;
+    /*gshort      pool_pos;*/
     PBNode      node;
-    pthread_t   th;
+    /*pthread_t   th;*/
     gulong      elapsed_usecs = 0;
+    GString     *logs;
+    GError      *th_err;
 
     if (!pg)
         return PB_FAIL;
 
+    /* Create path where the output will be writen: ${CONFIG_DIR}/pbuilder_logs/<package>.log */
+    logs = g_string_new(NULL);
+    g_string_printf(logs, "%s/pbuilder_logs", pg->env->config_dir);
+
+    mkdir(logs->str, S_IRWXU);
+        /*if (mkdir(logs->str, S_IRWXU) != 0)*/
+        /*pb_log(PB_WARN, "%s(): mkdir(): %s: %s", __func__, logs->str, strerror(errno));*/
+    g_string_free(logs, TRUE);
+
     g_list_foreach(pg->graph, pb_node_get_max_priority, &prio_num);
     pb_print_ok("========== Building %u packages organized in %d priorities\n", g_list_length(pg->graph), prio_num);
-    /*pb_debug(1, DBG_ALL, "Number of priorities found: %d\n", prio_num);*/
 
     pg->timer = g_timer_new();
 
@@ -455,20 +348,8 @@ PBResult pb_graph_exec(PBMain pg)
             if (node->priority == i) {
                 printf("Processing '%s' (%d)\n", node->name->str, node->priority);
 
-                pool_pos = pb_th_get_avail_thread(pg);
-                if (pool_pos < 0) {
-                    pb_debug(1, DBG_EXEC, "All threads are busy, waiting...\n");
-                    pool_pos = pb_th_wait_for_avail_thread(pg);
-                }
-
-                node->status = PB_STATUS_BUILDING;
-
-                node->pool_pos = pool_pos;
-
-                /* TODO Reserve position in pool */
-                pg->th_pool[pool_pos] = -1;
-
-                pthread_create(&th, NULL, pb_node_build_th, node);
+                if (g_thread_pool_push(pg->th_pool, (gpointer)node, &th_err) != TRUE)
+                    pb_log(LOG_ERR, "%s(): Failed to create thread for package '%s'", __func__, node->name->str);
             }
         }
         printf("\n");

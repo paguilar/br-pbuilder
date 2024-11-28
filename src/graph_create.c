@@ -39,8 +39,6 @@ void pb_node_free(gpointer data)
     if (node->parents)
         g_list_free(node->parents);
 
-    g_rec_mutex_clear(&node->mutex);
-
     g_free(node);
 }
 
@@ -162,6 +160,8 @@ static PBResult pb_graph_calc_nodes_priority(GList *graph)
 
     if (!graph)
         return PB_FAIL;
+
+    pb_print_ok("Calculating building priorities. This may take a while...\n");
 
 #if 1
     if (pb_node_calc_prio(graph->data) != PB_OK) {
@@ -399,7 +399,6 @@ static GList * pb_node_create(PBMain pbg, GList *graph, gchar **node_info)
     node->parents = NULL;
     node->childs = NULL;
     node->pg = pbg;
-    g_rec_mutex_init(&node->mutex);
 
     graph = g_list_append(graph, node);
 
@@ -481,10 +480,21 @@ static PBResult pb_graph_create_from_deps_file(PBMain pbg)
  */
 static PBResult pb_th_init_pool(PBMain pbg)
 {
+    GError  *th_err;
+
     if (!pbg)
         return PB_FAIL;
 
-    pbg->th_pool = g_new0(gint64, pbg->cpu_num);
+    /* Create a non-exclusive pool */
+    pbg->th_pool = g_thread_pool_new(pb_node_build_th, pbg, pbg->cpu_num, FALSE, NULL);
+    if (!pbg->th_pool)
+        return PB_FAIL;
+
+    if(g_thread_pool_set_max_threads(pbg->th_pool, pbg->cpu_num, &th_err) != TRUE) {
+        pb_log(LOG_ERR, "%s(): Failed to set max number of threads for the pool", __func__);
+        g_thread_pool_free(pbg->th_pool, TRUE, FALSE);
+        return PB_FAIL;
+    }
 
     return PB_OK;
 }
@@ -503,8 +513,7 @@ void pb_graph_free(PBMain pbg)
     }
 
     if (pbg->th_pool)
-        g_free(pbg->th_pool);
-        /*g_thread_pool_free(pbg->th_pool, TRUE, TRUE);*/
+        g_thread_pool_free(pbg->th_pool, TRUE, FALSE);
 
     g_free(pbg);
 }
