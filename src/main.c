@@ -51,6 +51,10 @@ static PBResult pb_get_env(PBMain pg)
         return PB_FAIL;
     }
 
+    /* Some packages, like zstd, use this environment variable in a different manner,
+     * so keeping it set causes problems */
+    unsetenv("BUILD_DIR");
+
     pg->env->config_dir = getenv("CONFIG_DIR");
     if (!pg->env->config_dir) {
         pb_log(LOG_ERR, "%s(): Failed to get environment variable CONFIG_DIR", __func__);
