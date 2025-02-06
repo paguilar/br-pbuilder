@@ -139,21 +139,6 @@ static PBResult pb_finalize_targets(PBMain pg)
     if (!pg)
         return PB_FAIL;
 
-    if (pb_finalize_single_target(pg, "host-finalize") != PB_OK) {
-        pb_log(LOG_ERR, "%s(): Failed to execute 'host-finalize' target", __func__);
-        return PB_FAIL;
-    }
-
-    if (pb_finalize_single_target(pg, "staging-finalize") != PB_OK) {
-        pb_log(LOG_ERR, "%s(): Failed to execute 'staging-finalize' target", __func__);
-        return PB_FAIL;
-    }
-
-    if (pb_finalize_single_target(pg, "target-finalize") != PB_OK) {
-        pb_log(LOG_ERR, "%s(): Failed to execute 'target-finalize' target", __func__);
-        return PB_FAIL;
-    }
-
     if (pb_finalize_single_target(pg, "target-post-image") != PB_OK) {
         pb_log(LOG_ERR, "%s(): Failed to execute 'target-post-image' target", __func__);
         return PB_FAIL;
