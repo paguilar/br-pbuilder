@@ -20,34 +20,6 @@
 #include "graph_exec.h"
 
 /**
- * @brief Calculate the number of packages that belong to the same priority
- * @param pg Main struct
- * @param cur_prio The current priority
- * @return The number of packages in the given priority
- */
-static guint pb_get_pkg_num_by_prio(PBMain pg, guint cur_prio)
-{
-    GList   *list;
-    gint    pkg_num_by_prio = 0;
-
-    if (!pg)
-        return pkg_num_by_prio;
-
-    if (!pg->graph)
-        return pkg_num_by_prio;
-
-    list = pg->graph;
-    while (list) {
-        PBNode  node = (PBNode)list->data;
-        if (node->priority == cur_prio)
-            pkg_num_by_prio++;
-        list = list->next;
-    }
-
-    return pkg_num_by_prio;
-}
-
-/**
  * @brief Execute a single target. This func is used only for the final targets
  * that are serialized.
  * @param pg Main struct
@@ -211,10 +183,35 @@ int pb_execute_cmd( gchar *cmd, gchar *target, gint *pkg_build_failed, FILE *flo
 }
 
 /**
+ * @brief Check if a package was already built. If yes, set state to done and return 1.
+ * @param node The node to be checked
+ * @return 1 if the package was already built, 0 otherwise
+ */
+gboolean pb_node_already_built(PBNode node){
+    struct stat sb;
+    GString *pkg_path = g_string_new(NULL);
+    g_string_printf(pkg_path, "%s/%s", node->pg->env->build_dir, node->name->str);
+
+    if (node->version->len > 0)
+        g_string_append_printf(pkg_path, "-%s", node->version->str);
+
+    if ((stat(pkg_path->str, &sb) == 0) && S_ISDIR(sb.st_mode)) {
+        g_string_append(pkg_path, "/.stamp_installed");
+        if (stat(pkg_path->str, &sb) == 0) {
+            g_string_free(pkg_path, TRUE);
+            node->elapsed_secs = 0;
+            node->status = PB_STATUS_DONE;
+            return TRUE;
+        }
+    }
+    g_string_free(pkg_path, TRUE);
+    return FALSE;
+}
+
+/**
  * @brief The thread that builds a node. It uses a pipe to execute 'make <package>' and send all
  * its output to the logs file pbuilder_logs/<package>.logs. If there's an error, the flag build_error
- * in the main struct is set and when all the threads in that priority level finish, the calling func
- * pb_graph_exec() will halt the overall building process.
+ * in the main struct will be set causing the calling function, pb_graph_exec(), to halt the overall build process.
  * @param data The node to be built
  * @return NULL
  */
@@ -222,39 +219,16 @@ void pb_node_build_th(gpointer data, gpointer user_data)
 {
     PBMain      pg = (PBMain)user_data;
     PBNode      node = (PBNode)data;
-    GString     *pkg_path,
-                *cmd,
+    GString     *cmd,
                 *logs;
     gulong      elapsed_usecs = 0;
 	gint        ret,
     			have_logs = 0,
 				pkg_build_failed = 0;
     FILE        *flog = NULL;
-    struct stat sb;
 
     if (!pg || !node)
         return;
-
-    /* Check if package was already built. If yes, skip it and set it as done */
-    pkg_path = g_string_new(NULL);
-    g_string_printf(pkg_path, "%s/%s", pg->env->build_dir, node->name->str);
-
-    if (node->version->len > 0)
-        g_string_append_printf(pkg_path, "-%s", node->version->str);
-
-    /*if (sb.st_mode & S_IFDIR) {*/
-    if ((stat(pkg_path->str, &sb) == 0) && S_ISDIR(sb.st_mode)) {
-        g_string_append(pkg_path, "/.stamp_installed");
-        if (stat(pkg_path->str, &sb) == 0) {
-            g_string_free(pkg_path, TRUE);
-            pb_print_warn("Package '%s' was already built. Skipping!\n", node->name->str);
-            node->elapsed_secs = 0;
-            node->status = PB_STATUS_DONE;
-            return;
-        }
-    }
-
-    g_string_free(pkg_path, TRUE);
 
     pb_debug(1, DBG_EXEC, "Thread at position %d is building '%s'\n", node->pool_pos, node->name->str);
 
@@ -314,20 +288,6 @@ void pb_node_build_th(gpointer data, gpointer user_data)
 }
 
 /**
- * @brief Get the highest priority in the graph. It's called from a g_list_foreach()
- * @param data A node
- * @param user_data An unsigned int variable where the highest priority is saved
- */
-static void pb_node_get_max_priority(gpointer data, gpointer user_data)
-{
-    PBNode node = data;
-    guint *max_prio = user_data;
-
-    if (node->priority > *max_prio)
-        *max_prio = node->priority;
-}
-
-/**
  * @brief For each priority move across the graph and build the nodes that belong to the current priority.
  * Assign a CPU core to a single node that has to be built and when it finishes go to the next node and
  * so on until there are no more nodes with the that priority.
@@ -337,15 +297,9 @@ static void pb_node_get_max_priority(gpointer data, gpointer user_data)
 PBResult pb_graph_exec(PBMain pg)
 {
     GList       *list;
-    guint       i,
-                pkg_num_by_prio,
-                prio_num = 0;
-    /*gshort      pool_pos;*/
     PBNode      node;
-    /*pthread_t   th;*/
     gulong      elapsed_usecs = 0;
     GString     *logs;
-    GError      *th_err;
 
     if (!pg)
         return PB_FAIL;
@@ -359,35 +313,68 @@ PBResult pb_graph_exec(PBMain pg)
         /*pb_log(PB_WARN, "%s(): mkdir(): %s: %s", __func__, logs->str, strerror(errno));*/
     g_string_free(logs, TRUE);
 
-    g_list_foreach(pg->graph, pb_node_get_max_priority, &prio_num);
-    pb_print_ok("========== Building %u packages organized in %d priorities\n", g_list_length(pg->graph), prio_num);
+    pb_print_ok("========== Building %u packages using br-pbuilder\n", g_list_length(pg->graph));
 
     pg->timer = g_timer_new();
 
-    for (i = 1; i <= prio_num; i++) {
-        pkg_num_by_prio = pb_get_pkg_num_by_prio(pg, i);
-        if (pkg_num_by_prio > 0)
-            pb_print_ok("========== Building %d packages with priority %d...\n", pkg_num_by_prio, i);
-        else
-            pb_print_ok("========== Building packages with priority %d...\n", i);
+    while (TRUE) {
+        if (g_thread_pool_get_num_threads(pg->th_pool) > pg->cpu_num){
+            pb_print_err("Number of threads is greater than the number of CPUs. Halting build!\n");
+            pg->build_error = TRUE;
+            break;
+        }
+
+        guint num_threads_available = (guint)(pg->cpu_num) - g_thread_pool_get_num_threads(pg->th_pool);
 
         for (list = pg->graph; list != NULL; list = list->next) {
+            gboolean dependencies_built = TRUE;
             node = list->data;
-            if (node->priority == i) {
-                printf("Processing '%s' (%d)\n", node->name->str, node->priority);
 
-                if (g_thread_pool_push(pg->th_pool, (gpointer)node, &th_err) != TRUE)
+            if (num_threads_available == 0) {
+                break;
+            }
+
+            if (node->status != PB_STATUS_READY){
+                continue;
+            }
+
+            if (pb_node_already_built(node)){
+                pb_print_warn("Package '%s' was already built. Skipping!\n", node->name->str);
+                continue;
+            }
+
+            for (GList *parent_list = node->parents; parent_list != NULL; parent_list = parent_list->next) {
+                PBNode parent_node = parent_list->data;
+                if (parent_node->status != PB_STATUS_DONE) {
+                    dependencies_built = FALSE;
+                    break;
+                }
+            }
+
+            if (dependencies_built) {
+                printf("Processing '%s'\n", node->name->str);
+                if (g_thread_pool_push(pg->th_pool, (gpointer)node, NULL) != TRUE) {
                     pb_log(LOG_ERR, "%s(): Failed to create thread for package '%s'", __func__, node->name->str);
+                    pg->build_error = TRUE;
+                    break;
+                }
+                node->status = PB_STATUS_BUILDING;
+                num_threads_available--;
             }
         }
-        printf("\n");
-        pb_th_wait_for_all_threads(pg);
 
         if (pg->build_error) {
             pb_print_err("Halting build due to previous errors!\n");
             break;
         }
+
+        if (!g_thread_pool_get_num_threads(pg->th_pool))
+            break;
+        
+        sleep(1);
     }
+
+    pb_th_wait_for_all_threads(pg);
 
     if (pg->build_error == FALSE) {
         if (pb_finalize_targets(pg) != PB_OK) {
