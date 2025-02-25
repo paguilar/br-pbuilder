@@ -72,6 +72,12 @@ This table summarizes the packages names, their levels and their dependencies in
 
 Each package may have one or more dependencies and all of them must be in higher levels.
 
+The current algorithm starts building a package as soon as all its dependencies have been built.
+Following the above example, package E is built as soon as packages C and A have been built.
+This algorithm increases the performance with respect to the original algorithm that used to
+build the packages of a given level and waited until all of them finished before starting to build
+the packages of the next level.
+
 
 ## Performance
 
@@ -113,10 +119,14 @@ There are two alternatives:
 1. Download the fork of Buildroot that already includes br-pbuilder
 2. Patch Buildroot if it was previously downloaded
 
+Currently, the second alternative is preferred.
+
 ### Download the fork of Buildroot
 
 Download it from this [link](https://github.com/paguilar/buildroot) and when building,
 instead of using *make*, use *make pbuilder*.
+
+Please note that the second alternative is currenlty preferred.
 
 ### Patch Buildroot
 
@@ -142,6 +152,7 @@ $ ./scripts/install.sh -b <buildroot_path>
 where *<buildroot_path>* is the path to Buildroot's top directory.
 This script creates symlinks inside the Buildroot sources and patches its main Makefile and some
 scripts like br2-external.
+This script will detect the Buildroot version and apply the patches corresponding to that version.
 
 4. Configure Buildroot:
 
@@ -157,7 +168,7 @@ $ make pbuilder
 ```
 
 That's it. At this point the output of the main building steps of each package are displayed
-organized by priority along with the total building time of each package and at the end the total
+along with the total building time of each package and at the end the total
 building time of the whole configuration. The complete output of each package and its errors, if
 any, can be found in pbuilder_logs/<package>.log inside Buildroot's build path.
 
@@ -171,8 +182,8 @@ Buildroot's main *Makefile*. N is the debug level that can be [1-3].
 
 ## Current status
 
-As of today, this is just a simple proof of concept that seems to work with several built-in
-defconfigs and projects with a br2-external tree.
+As of today, this project is been used in several projects that contain extensive external trees
+in which the time and storage savings are greatly appreciated.
 
 It has been tested against Buildroot's latest stable releases and master branch of the official
 repo.
