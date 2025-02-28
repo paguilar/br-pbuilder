@@ -247,14 +247,18 @@ void pb_node_build_th(gpointer data, gpointer user_data)
     g_string_printf(cmd, "BR2_EXTERNAL=%s make %s 2>&1", pg->env->br2_external, node->name->str);
     /*g_string_printf(cmd, "%s/brmake %s", pg->env->config_dir, node->name->str);*/
 
+    /* This function with the retries are just a workaround for issue #4: 'No rule to make target' */
     ret = pb_execute_cmd(cmd->str, node->name->str, &pkg_build_failed, flog, have_logs);
     if (ret == 2) {
         sleep(1);
-        char *retry = "The make target wasn't found, even though it should have been found, so retrying...\n";
-        fwrite(retry, sizeof(char), strlen(retry), flog);
+        if (have_logs) {
+            char *retry = "The make target wasn't found, even though it should have been found, so retrying...\n";
+            fwrite(retry, sizeof(char), strlen(retry), flog);
+        }
         ret = pb_execute_cmd(cmd->str, node->name->str, &pkg_build_failed, flog, have_logs);
-        if (ret == 2) {
-            fwrite("Retry didn't work\n", sizeof(char), strlen("Retry didn't work\n"), flog);
+        if ((ret == 2) && have_logs) {
+            char *retry = "Retry didn't work\n";
+            fwrite(retry, sizeof(char), strlen(retry), flog);
         }
     }
 
