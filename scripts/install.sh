@@ -45,8 +45,8 @@ install()
     get_br2_ver
     echo "Detected Buildroot version (yyyy.mm): $br2_ver"
     if [ ! -d $PBUILDER_PATH/patches/$br2_ver ]; then
-        echo "Failed to found patches for this Buildroot version: $br2_ver"
-        exit 1
+        echo "Failed to found patches for Buildroot version '$br2_ver'. Trying latest patch set..."
+        br2_ver="latest"
     fi
 
     echo "Creating symlinks..."
