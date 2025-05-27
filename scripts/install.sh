@@ -69,13 +69,20 @@ install()
 
 remove()
 {
+    get_br2_ver
+    echo "Detected Buildroot version (yyyy.mm): $br2_ver"
+    if [ ! -d $PBUILDER_PATH/patches/$br2_ver ]; then
+        echo "Failed to found patches for Buildroot version '$br2_ver'. Trying latest patch set..."
+        br2_ver="latest"
+    fi
+
     echo "Removing symlinks..."
     rm -f $BR_PATH/utils/pbuilder
     rm -f $BR_PATH/support/scripts/pbuilder.py
 
     echo "Restoring makefiles..."
     cd $BR_PATH
-    for i in `ls $PBUILDER_PATH/patches/*.patch`; do
+    for i in `ls $PBUILDER_PATH/patches/$br2_ver/*.patch`; do
         patch -R -p1 < $i
     done
 }
