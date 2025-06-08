@@ -130,58 +130,6 @@ static void pb_th_wait_for_all_threads(PBMain pg)
     }
 }
 
-
-/**
- * Executes a command and logs the output to flog.
- *
- * @param cmd The command to execute.
- * @param target The target associated with the command.
- * @param pkg_build_failed Pointer to an integer that will be set if the package build fails.
- * @param flog File pointer to the log file.
- * @param have_logs Integer indicating if logs are available.
- * @return Status code of the command execution.
- */
-int pb_execute_cmd( gchar *cmd, gchar *target, gint *pkg_build_failed, FILE *flog, gint have_logs){
-    gchar       path[BUFF_8K];
-    FILE        *fp = NULL;
-    gint no_rule_retry = 0;
-    gint ret = 0;
-
-    *pkg_build_failed = 0;
-
-    fp = popen(cmd, "r");
-    if (fp == NULL) {
-		*pkg_build_failed = 1;
-	}
-    else {
-        while (fgets(path, sizeof(path), fp) != NULL) {
-            if (have_logs){
-                char no_rule[256];
-                memset(no_rule, 0, sizeof(no_rule));
-                snprintf(no_rule, sizeof(no_rule), "No rule to make target '%s'", target);
-                if (strstr(path, no_rule) != NULL) {
-                    /* This is a workaround */
-                    /* TODO: debug the no rule to make target bug and actually fix it */
-                    no_rule_retry = 1;
-                }
-                fwrite(path, sizeof(char), strlen(path), flog);
-            }
-            if (!strncmp(path, "\E[7m>>>", 7))
-                printf("%s", path);
-        }
-
-        ret = WEXITSTATUS(pclose(fp));
-		if (ret) {
-			*pkg_build_failed = 1;
-		}
-    }
-    
-    if (no_rule_retry) {
-        return 2;
-    }
-    return 0;
-}
-
 /**
  * @brief Check if a package was already built. If yes, set state to done and return 1.
  * @param node The node to be checked
@@ -225,7 +173,9 @@ void pb_node_build_th(gpointer data, gpointer user_data)
 	gint        ret,
     			have_logs = 0,
 				pkg_build_failed = 0;
-    FILE        *flog = NULL;
+    gchar       path[BUFF_8K];
+    FILE        *fp = NULL,
+                *fd = NULL;
 
     if (!pg || !node)
         return;
@@ -237,7 +187,7 @@ void pb_node_build_th(gpointer data, gpointer user_data)
     /* Write output to ${CONFIG_DIR}/pbuilder_logs/<package>.log */
     logs = g_string_new(NULL);
     g_string_printf(logs, "%s/pbuilder_logs/%s.log", pg->env->config_dir, node->name->str);
-    if ((flog = fopen(logs->str, "a")) != NULL)
+    if ((fd = fopen(logs->str, "a")) != NULL)
         have_logs = 1;
     else
         pb_log(LOG_ERR, "%s(): fopen(): %s: %s", __func__, logs->str, strerror(errno));
@@ -247,28 +197,39 @@ void pb_node_build_th(gpointer data, gpointer user_data)
     g_string_printf(cmd, "BR2_EXTERNAL=%s make %s 2>&1", pg->env->br2_external, node->name->str);
     /*g_string_printf(cmd, "%s/brmake %s", pg->env->config_dir, node->name->str);*/
 
-    /* This function with the retries are just a workaround for issue #4: 'No rule to make target' */
-    ret = pb_execute_cmd(cmd->str, node->name->str, &pkg_build_failed, flog, have_logs);
-    if (ret == 2) {
-        sleep(1);
-        if (have_logs) {
-            char *retry = "The make target wasn't found, even though it should have been found, so retrying...\n";
-            fwrite(retry, sizeof(char), strlen(retry), flog);
+    fp = popen(cmd->str, "r");
+    if (fp == NULL) {
+        pb_log(LOG_ERR, "%s(): Pipe creation failed while building '%s': %s", __func__, node->name->str, strerror(errno));
+        pb_print_err("Pipe creation failed while building '%s': %s\n", node->name->str, strerror(errno));
+		/* TODO exit thread*/
+		pkg_build_failed = 1;
+	}
+    else {
+        while (fgets(path, sizeof(path), fp) != NULL) {
+            if (have_logs)
+                fwrite(path, sizeof(char), strlen(path), fd);
+            if (!strncmp(path, "\E[7m>>>", 7))
+                printf("%s", path);
         }
-        ret = pb_execute_cmd(cmd->str, node->name->str, &pkg_build_failed, flog, have_logs);
-        if ((ret == 2) && have_logs) {
-            char *retry = "Retry didn't work\n";
-            fwrite(retry, sizeof(char), strlen(retry), flog);
-        }
-    }
 
-    if (pkg_build_failed) {
-        pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, node->name->str);
-        pb_print_err("Error while building '%s'!\nSee pbuilder_logs/%s.log\n", node->name->str, node->name->str);
+        ret = WEXITSTATUS(pclose(fp));
+		if (ret) {
+            pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, node->name->str);
+            pb_print_err("Error while building '%s'!\nSee pbuilder_logs/%s.log\n", node->name->str, node->name->str);
+            pkg_build_failed = 1;
+		}
     }
 
     if (have_logs)
-        fclose(flog);
+        fclose(fd);
+
+    if ((node->priority == 1) || (access(pg->br2_ext_file->str, F_OK) != 0)) {
+        pb_print_ok("BR2 external lock file doesn't exist, Creating it...\n");
+        if ((fd = fopen(pg->br2_ext_file->str, "w")) == NULL)
+            pb_log(LOG_ERR, "%(): fopen(): %s", __func__, strerror(errno));
+        else
+            fclose(fd);
+    }
 
     g_string_free(logs, TRUE);
 
@@ -316,6 +277,11 @@ PBResult pb_graph_exec(PBMain pg)
         /*if (mkdir(logs->str, S_IRWXU) != 0)*/
         /*pb_log(PB_WARN, "%s(): mkdir(): %s: %s", __func__, logs->str, strerror(errno));*/
     g_string_free(logs, TRUE);
+
+    pg->br2_ext_file = g_string_new(NULL);
+    g_string_printf(pg->br2_ext_file, "%s/%s", pg->env->config_dir, BR2_EXT_EXEC_ONCE_FILE);
+    pb_print_ok("Removing BR2 external lock file %s\n", pg->br2_ext_file->str);
+    remove(pg->br2_ext_file->str);
 
     pb_print_ok("========== Building %u packages using br-pbuilder\n", g_list_length(pg->graph));
 
@@ -379,6 +345,9 @@ PBResult pb_graph_exec(PBMain pg)
     }
 
     pb_th_wait_for_all_threads(pg);
+
+    remove(pg->br2_ext_file->str);
+    pb_print_ok("Removing BR2 external lock file %s\n", pg->br2_ext_file->str);
 
     if (pg->build_error == FALSE) {
         if (pb_finalize_targets(pg) != PB_OK) {

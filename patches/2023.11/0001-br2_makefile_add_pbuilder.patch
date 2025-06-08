@@ -20,7 +20,7 @@ index 6d5e9a7972..fc89cad4e5 100644
  clean:
  	rm -rf $(BASE_TARGET_DIR) $(BINARIES_DIR) $(HOST_DIR) $(HOST_DIR_SYMLINK) \
  		$(BUILD_DIR) $(BASE_DIR)/staging \
-+		$(BASE_DIR)/pbuilder_logs $(BASE_DIR)/.pbuilder.* \
++		$(BASE_DIR)/pbuilder_logs $(BASE_DIR)/.pbuilder* \
  		$(LEGAL_INFO_DIR) $(GRAPHS_DIR) $(PER_PACKAGE_DIR) $(O)/pkg-stats.*
  
  .PHONY: distclean

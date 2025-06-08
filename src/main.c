@@ -85,6 +85,7 @@ static PBResult pb_create_main_struct(PBMain *pbg)
     pg->graph = NULL;
     pg->timer = NULL;
     pg->env = NULL;
+    pg->br2_ext_file = NULL;
 
     if (cpu_num < 1 || cpu_num > g_get_num_processors())
         pg->cpu_num = g_get_num_processors();

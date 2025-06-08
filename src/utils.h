@@ -44,6 +44,8 @@ extern gint    cpu_num;            /**< Max number of CPU used to build */
 #define C_CYAN          "\x1B[36m"
 #define C_WHITE         "\x1B[37m"
 
+#define BR2_EXT_EXEC_ONCE_FILE  ".pbuilder-br2-external-already-executed"
+
 /**
  * Return types
  */

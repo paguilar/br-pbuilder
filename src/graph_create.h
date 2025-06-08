@@ -77,6 +77,7 @@ struct pbuilder_main_st
     gdouble         elapsed_secs;       /**< Time required to build the whole graph */
     gboolean        build_error;        /**< An error occurred while building */
     PBEnv           env;                /**< Store the environment variables */
+    GString         *br2_ext_file;      /**< File used as flag to avoid br2-external concurrent executions */
 };
 
 PBResult    pb_node_calc_prio(PBNode);
