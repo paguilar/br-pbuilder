@@ -1,17 +1,11 @@
 diff --git a/support/scripts/br2-external b/support/scripts/br2-external
-index 48b4517dd0..8ba1a8a182 100755
+index 8aea479d20..d9b970de3a 100755
 --- a/support/scripts/br2-external
 +++ b/support/scripts/br2-external
-@@ -34,12 +34,17 @@ main() {
+@@ -34,6 +34,14 @@ main() {
      trap "error 'unexpected error while generating ${ofile}\n'" ERR
  
      mkdir -p "${outputdir}"
--    {
--        flock -x 3
--        do_validate "${outputdir}" ${@//:/ };
--        do_mk "${outputdir}";
--        do_kconfig "${outputdir}";
--    } 3>.pbuilder-br2-external-lock
 +
 +    if [ ! -f "${outputdir}/.pbuilder-br2-external-already-executed" ]; then
 +        echo "Lock file doesn't exist, execute normally" >> ${outputdir}/.pbuilder-lockfile-debug
@@ -20,9 +14,6 @@ index 48b4517dd0..8ba1a8a182 100755
 +        return
 +    fi
 +
-+    do_validate "${outputdir}" ${@//:/ };
-+    do_mk "${outputdir}";
-+    do_kconfig "${outputdir}";
- }
- 
- # Validates the br2-external trees passed as arguments. Makes each of
+     do_validate "${outputdir}" ${@//:/ }
+     do_mk "${outputdir}"
+     do_kconfig "${outputdir}"
