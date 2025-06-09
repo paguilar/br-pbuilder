@@ -44,7 +44,10 @@ static PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
         return PB_FAIL;
 
     cmd = g_string_new(NULL);
-    g_string_printf(cmd, "BR2_EXTERNAL=%s make %s 2>&1", pg->env->br2_external, target);
+    if (strlen(pg->env->br2_external) > 0)
+        g_string_printf(cmd, "BR2_EXTERNAL=%s ", pg->env->br2_external);
+
+    g_string_append_printf(cmd, "make %s 2>&1", target);
 
     timer = g_timer_new();
 
@@ -194,8 +197,10 @@ void pb_node_build_th(gpointer data, gpointer user_data)
 
     /* Build package by calling make <package> */
     cmd = g_string_new(NULL);
-    g_string_printf(cmd, "BR2_EXTERNAL=%s make %s 2>&1", pg->env->br2_external, node->name->str);
-    /*g_string_printf(cmd, "%s/brmake %s", pg->env->config_dir, node->name->str);*/
+    if (strlen(pg->env->br2_external) > 0)
+        g_string_printf(cmd, "BR2_EXTERNAL=%s ", pg->env->br2_external);
+
+    g_string_append_printf(cmd, "make %s 2>&1", node->name->str);
 
     fp = popen(cmd->str, "r");
     if (fp == NULL) {
