@@ -111,35 +111,24 @@ Buildroot, except the following two packages that are optional for Buildroot:
 - glib2
 - python (version 3)
 
+### Compatibility
+
+Currently, br-pbuilder suppports Buildroot 2022.02 or later.
 
 ## How to use it
 
-There are two alternatives:
+1. Download Buildroot
 
-1. Download the fork of Buildroot that already includes br-pbuilder
-2. Patch Buildroot if it was previously downloaded
+Download Buildroot from its [official site](https://buildroot.org/).
+If it's already present in the host, skip this step.
 
-Currently, the second alternative is preferred.
-
-### Download the fork of Buildroot
-
-Download it from this [link](https://github.com/paguilar/buildroot) and when building,
-instead of using *make*, use *make pbuilder*.
-
-Please note that the second alternative is currenlty preferred.
-
-### Patch Buildroot
-
-If Buildroot is already present in the host, follow these steps to use br-pbuilder with the current
-installation.
-
-1. Download br-pbuilder:
+2. Download br-pbuilder
 
 ```
 git clone https://github.com/paguilar/br-pbuilder.git
 ```
 
-2. Patch Buildroot:
+3. Patch Buildroot
 
 Since br-pbuilder is invoked as a target from Buildroot's Makefile, the main Makefile and some
 scripts need to be patched.
@@ -159,7 +148,7 @@ This script will detect the Buildroot version and apply the patches correspondin
 The Buildroot configuration remains exactly the same, nothing has been touched here. Use any of the
 configuration methods such as *make <defconfig>* or just something like *make menuconfig*.
 
-5. Execute the parallel builder:
+5. Execute br-pbuilder:
 
 From Buildroot's build path invoke the parallel builder:
 
@@ -179,14 +168,20 @@ missing, it creates it using the Makefile's *show-info* target.
 In order to increase the verbosity during the br-pbuilder execution, add the -l N cmdline arg in
 Buildroot's main *Makefile*. N is the debug level that can be [1-3].
 
+In order to remove br-pbuilder from Buildroot, the install script can be used:
+
+```
+$ cd br-pbuilder
+$ ./scripts/install.sh -b <buildroot_path> -r
+```
 
 ## Current status
 
-As of today, this project is been used in several projects that contain extensive external trees
+As of today, this project is being used in several projects that contain extensive external trees
 in which the time and storage savings are greatly appreciated.
 
-It has been tested against Buildroot's latest stable releases and master branch of the official
-repo.
+It has also been tested against Buildroot's latest stable releases and master branch of the
+official repo.
 
 This program is not part of the offical Buildroot project. As a matter of fact, Buildroot already
 offers this functionality as an experimental feature, but the manual warns that it may not work in
