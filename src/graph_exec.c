@@ -20,13 +20,14 @@
 #include "graph_exec.h"
 
 /**
- * @brief Execute a single target. This func is used only for the final targets
- * that are serialized.
+ * @brief Execute the last targets that are not packages, but steps normally used
+ * for creating the filesystem images, FIT images and the like.
+ * These operations must be serialized.
  * @param pg Main struct
  * @param target String with the BR target name. Eg. target-finalize
  * @return PB_OK if successful, PB_FAIL otherwise
  */
-static PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
+PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
 {
     gchar   path[BUFF_8K];
     FILE    *fp = NULL,
@@ -102,28 +103,7 @@ static PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
     return PB_OK;
 }
 
-/**
- * @brief Execute the last targets that are not packages, but steps that normally used
- * for creating the filesystem images, FIT images and the like.
- * These operations are serialized, not in parallel
- * @param pg Main struct
- * @return PB_OK if successful, PB_FAIL otherwise
- */
-static PBResult pb_finalize_targets(PBMain pg)
-{
-    if (!pg)
-        return PB_FAIL;
-
-    if (pb_finalize_single_target(pg, "target-post-image") != PB_OK) {
-        pb_log(LOG_ERR, "%s(): Failed to execute 'target-post-image' target", __func__);
-        return PB_FAIL;
-    }
-
-    return PB_OK;
-}
-
-
-static void pb_th_wait_for_all_threads(PBMain pg)
+void pb_th_wait_for_all_threads(PBMain pg)
 {
     while (1) {
         if (!g_thread_pool_get_num_threads(pg->th_pool))
@@ -369,9 +349,9 @@ PBResult pb_graph_exec(PBMain pg)
     remove(pg->br2_ext_file->str);
 
     if (pg->build_error == FALSE) {
-        if (pb_finalize_targets(pg) != PB_OK) {
-            pb_log(LOG_ERR, "%s(): Failed to finalize targets", __func__);
-            pb_print_err("Failed to finalize targets\n");
+        if (pb_finalize_single_target(pg, "target-post-image") != PB_OK) {
+            pb_log(LOG_ERR, "%s(): Failed to execute 'target-post-image'", __func__);
+            pb_print_err("Failed to execute 'target-post-image'");
             pg->build_error = TRUE;
         }
     }

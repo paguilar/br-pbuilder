@@ -14,5 +14,7 @@
 #include "utils.h"
 
 PBResult    pb_graph_exec(PBMain);
+void        pb_th_wait_for_all_threads(PBMain);
+PBResult    pb_finalize_single_target(PBMain, const gchar *);
 
 #endif  /* _GRAPH_EXEC_H_ */
