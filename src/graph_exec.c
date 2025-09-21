@@ -225,8 +225,6 @@ void pb_node_build_th(gpointer data, gpointer user_data)
         node->pg->build_error = TRUE;
         node->build_failed = TRUE;
     }
-    else
-        pb_print_ok("Package '%s' built in %f secs\n", node->name->str, node->elapsed_secs);
 
     g_timer_destroy(node->timer);
 
