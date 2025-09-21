@@ -90,7 +90,7 @@ static PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
     elapsed_time = g_timer_elapsed(timer, &elapsed_usecs);
 
     if (!target_build_failed)
-        pb_print_ok("Package '%s' built in %f secs\n", target, elapsed_time);
+        pb_print_ok("'%s' executed in %.3f secs\n", target, elapsed_time);
 
     g_timer_destroy(timer);
 
@@ -173,9 +173,10 @@ void pb_node_build_th(gpointer data, gpointer user_data)
     GString     *cmd,
                 *logs;
     gulong      elapsed_usecs = 0;
-	gint        ret,
-    			have_logs = 0,
-				pkg_build_failed = 0;
+    gint        ret,
+                have_logs = 0,
+                pkg_build_failed = 0,
+                total_nodes_done = 0;
     gchar       path[BUFF_8K];
     FILE        *fp = NULL,
                 *fd = NULL;
@@ -229,7 +230,6 @@ void pb_node_build_th(gpointer data, gpointer user_data)
         fclose(fd);
 
     if ((node->priority == 1) || (access(pg->br2_ext_file->str, F_OK) != 0)) {
-        pb_print_ok("BR2 external lock file doesn't exist, Creating it...\n");
         if ((fd = fopen(pg->br2_ext_file->str, "w")) == NULL)
             pb_log(LOG_ERR, "%(): fopen(): %s", __func__, strerror(errno));
         else
@@ -253,6 +253,22 @@ void pb_node_build_th(gpointer data, gpointer user_data)
     g_string_free(cmd, TRUE);
 
     node->status = PB_STATUS_DONE;
+
+    /* If the package was successfully built, print elapsed time and total percentage */
+    if (!pkg_build_failed) {
+        g_mutex_lock(&pg->nodes_mutex);
+
+        for (GList *list = pg->graph; list; list = list->next) {
+            PBNode pkg = (PBNode)list->data;
+            if (pkg->status == PB_STATUS_DONE)
+                total_nodes_done++;
+        }
+
+        pb_print_ok("(%.2f%%) Package '%s' built in %.3f secs\n",
+            (float)total_nodes_done / (float)g_list_length(pg->graph) * 100, node->name->str, node->elapsed_secs);
+
+        g_mutex_unlock(&pg->nodes_mutex);
+    }
 
     return;
 }
@@ -285,7 +301,6 @@ PBResult pb_graph_exec(PBMain pg)
 
     pg->br2_ext_file = g_string_new(NULL);
     g_string_printf(pg->br2_ext_file, "%s/%s", pg->env->config_dir, BR2_EXT_EXEC_ONCE_FILE);
-    pb_print_ok("Removing BR2 external lock file %s\n", pg->br2_ext_file->str);
     remove(pg->br2_ext_file->str);
 
     pb_print_ok("========== Building %u packages using br-pbuilder\n", g_list_length(pg->graph));
@@ -352,7 +367,6 @@ PBResult pb_graph_exec(PBMain pg)
     pb_th_wait_for_all_threads(pg);
 
     remove(pg->br2_ext_file->str);
-    pb_print_ok("Removing BR2 external lock file %s\n", pg->br2_ext_file->str);
 
     if (pg->build_error == FALSE) {
         if (pb_finalize_targets(pg) != PB_OK) {
@@ -365,7 +379,7 @@ PBResult pb_graph_exec(PBMain pg)
     g_timer_stop(pg->timer);
     pg->elapsed_secs = g_timer_elapsed(pg->timer, &elapsed_usecs);
 
-    pb_print_ok("===== Total elapsed time: %f\n", pg->elapsed_secs);
+    pb_print_ok("===== Total elapsed time: %.3f\n", pg->elapsed_secs);
     g_timer_destroy(pg->timer);
     pg->timer = NULL;
 

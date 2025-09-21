@@ -78,6 +78,7 @@ struct pbuilder_main_st
     gboolean        build_error;        /**< An error occurred while building */
     PBEnv           env;                /**< Store the environment variables */
     GString         *br2_ext_file;      /**< File used as flag to avoid br2-external concurrent executions */
+    GMutex          nodes_mutex;        /**< Protect data accessed inside the building thread */
 };
 
 PBResult    pb_node_calc_prio(PBNode);

@@ -86,6 +86,7 @@ static PBResult pb_create_main_struct(PBMain *pbg)
     pg->timer = NULL;
     pg->env = NULL;
     pg->br2_ext_file = NULL;
+    g_mutex_init(&pg->nodes_mutex);
 
     if (cpu_num < 1 || cpu_num > g_get_num_processors())
         pg->cpu_num = g_get_num_processors();
@@ -151,6 +152,8 @@ int main(int argc, char *argv[])
         g_option_context_free(opt_context);
         return EXIT_FAILURE;
     }
+
+    g_mutex_clear(&pbg->nodes_mutex);
 
     pb_graph_free(pbg);
 
