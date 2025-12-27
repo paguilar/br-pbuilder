@@ -6,13 +6,6 @@
  * Released under the terms of the GNU GPL v2.0.
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-
-#include <glib.h>
-#include <glib/gprintf.h>
-
 #include "utils.h"
 
 /**

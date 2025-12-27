@@ -10,7 +10,20 @@
 #ifndef _UTILS_H_
 #define _UTILS_H_
 
-#include <glib.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <string.h>
+#include <errno.h>
+
+/*#include <glib.h>*/
+#include <glib-2.0/glib.h>
+#include <glibconfig.h>
+#include <glib/gprintf.h>
+
 #include <syslog.h>
 
 /* 

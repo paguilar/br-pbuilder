@@ -7,17 +7,6 @@
  * Released under the terms of the GNU GPL v2.0.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <string.h>
-#include <errno.h>
-
-#include <glib-2.0/glib.h>
-#include <glibconfig.h>
-
 #include "graph_create.h"
 
 void pb_node_free(gpointer data)
@@ -215,29 +204,6 @@ static PBResult pb_graph_calc_nodes_priority(GList *graph)
     return PB_OK;
 }
 
-/**
- * @brief Search the name of a node. It's called for each node in the graph
- * @param a A node in the graph
- * @param b The name of the node to search for
- * @return 0 if a node is found, 1 otherwise
- */
-gint pb_node_find_by_name(gconstpointer a, gconstpointer b)
-{
-    const struct pbuilder_node_st *  node = a;
-    const gchar   *str = b;
-
-    pb_debug(3, DBG_CREATE, "\t%s - %s: ", str, node->name->str);
-
-    if (!g_strcmp0(node->name->str, str)) {
-        pb_debug(3, DBG_CREATE, "Found!!!!!\n");
-        return 0;
-    }
-    else
-        pb_debug(3, DBG_CREATE, "NOT found\n");
-
-    return 1;
-}
-
 static void pb_node_link_single_parent_to_childs(gpointer data, gpointer user_data)
 {
     PBNode      node = data,
@@ -249,13 +215,13 @@ static void pb_node_link_single_parent_to_childs(gpointer data, gpointer user_da
 
     child_element = g_list_find_custom(node->childs,
         name_in_graph->name->str,
-        (GCompareFunc)pb_node_find_by_name);
+        (GCompareFunc)pb_node_name_exists);
     if (child_element)
         return;
 
     child_element = g_list_find_custom(name_in_graph->graph,
         name_in_graph->name->str,
-        (GCompareFunc)pb_node_find_by_name);
+        (GCompareFunc)pb_node_name_exists);
     if (!child_element)
         return;
 
@@ -306,7 +272,7 @@ static void pb_node_link_childs_to_parents(gpointer data, gpointer user_data)
     pb_debug(2, DBG_CREATE, "Linking parents of %s\n", node->name->str);
 
     for (p = node->parents_str; *p != NULL; p++) {
-        parent_element = g_list_find_custom(graph, *p, (GCompareFunc)pb_node_find_by_name);
+        parent_element = g_list_find_custom(graph, *p, (GCompareFunc)pb_node_name_exists);
         if (!parent_element)
             continue;
 
@@ -323,7 +289,7 @@ static void pb_node_link_childs_to_parents(gpointer data, gpointer user_data)
 
     /* Set the root parent 'ALL' to all orphan nodes */
     if (!node->parents) {
-        parent_element = g_list_find_custom(graph, "ALL", (GCompareFunc)pb_node_find_by_name);
+        parent_element = g_list_find_custom(graph, "ALL", (GCompareFunc)pb_node_name_exists);
         parent_node = (PBNode)parent_element->data;
         node->parents = g_list_append(node->parents, parent_node);
     }
@@ -357,7 +323,7 @@ static GList * pb_node_create(PBMain pbg, GList *graph, gchar **node_info)
     g_strchomp(node_name);
 
     /* Check if node already exists */
-    if (g_list_find_custom(graph, node_name, (GCompareFunc)pb_node_find_by_name)) {
+    if (g_list_find_custom(graph, node_name, (GCompareFunc)pb_node_name_exists)) {
         return graph;
     }
 
@@ -472,34 +438,6 @@ static PBResult pb_graph_create_from_deps_file(PBMain pbg)
 }
 
 /**
- * @brief Create pool of threads. Each thread builds one package at a time.
- * The size of the pool is the "cpu" command line argument or the max number
- * of available cores
- * @param pbg Main struct
- * @return PB_OK if successful, PB_FAIL otherwise
- */
-static PBResult pb_th_init_pool(PBMain pbg)
-{
-    GError  *th_err;
-
-    if (!pbg)
-        return PB_FAIL;
-
-    /* Create a non-exclusive pool */
-    pbg->th_pool = g_thread_pool_new(pb_node_build_th, pbg, pbg->cpu_num, FALSE, NULL);
-    if (!pbg->th_pool)
-        return PB_FAIL;
-
-    if(g_thread_pool_set_max_threads(pbg->th_pool, pbg->cpu_num, &th_err) != TRUE) {
-        pb_log(LOG_ERR, "%s(): Failed to set max number of threads for the pool", __func__);
-        g_thread_pool_free(pbg->th_pool, TRUE, FALSE);
-        return PB_FAIL;
-    }
-
-    return PB_OK;
-}
-
-/**
  * @brief Free the main graph and free the threads pool
  * @param pbg Main struct
  */
@@ -528,12 +466,6 @@ PBResult pb_graph_create(PBMain pg)
 {
     if (!pg)
         return PB_FAIL;
-
-    if (pb_th_init_pool(pg) != PB_OK) {
-        pb_log(PB_ERR, "Failed to init thread pool");
-        pb_graph_free(pg);
-        return PB_FAIL;
-    }
 
     if (pb_graph_create_from_deps_file(pg) != PB_OK) {
         pb_log(PB_ERR, "Failed to create graph");

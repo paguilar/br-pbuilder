@@ -6,17 +6,7 @@
  * Released under the terms of the GNU GPL v2.0.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <string.h>
-#include <errno.h>
-
-#include <glib-2.0/glib.h>
-#include <glibconfig.h>
-
+#include "graph_common.h"
 #include "graph_create.h"
 #include "graph_exec.h"
 

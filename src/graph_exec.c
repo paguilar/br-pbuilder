@@ -8,16 +8,7 @@
  *
  */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <errno.h>
-#include <glib-2.0/glib.h>
-
-#include "graph_create.h"
-#include "graph_exec.h"
+#include "graph_common.h"
 
 /**
  * @brief Execute the last targets that are not packages, but steps normally used
@@ -103,42 +94,6 @@ PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
     return PB_OK;
 }
 
-void pb_th_wait_for_all_threads(PBMain pg)
-{
-    while (1) {
-        if (!g_thread_pool_get_num_threads(pg->th_pool))
-            break;
-
-        sleep(1);
-    }
-}
-
-/**
- * @brief Check if a package was already built. If yes, set state to done and return 1.
- * @param node The node to be checked
- * @return 1 if the package was already built, 0 otherwise
- */
-gboolean pb_node_already_built(PBNode node){
-    struct stat sb;
-    GString *pkg_path = g_string_new(NULL);
-    g_string_printf(pkg_path, "%s/%s", node->pg->env->build_dir, node->name->str);
-
-    if (node->version->len > 0)
-        g_string_append_printf(pkg_path, "-%s", node->version->str);
-
-    if ((stat(pkg_path->str, &sb) == 0) && S_ISDIR(sb.st_mode)) {
-        g_string_append(pkg_path, "/.stamp_installed");
-        if (stat(pkg_path->str, &sb) == 0) {
-            g_string_free(pkg_path, TRUE);
-            node->elapsed_secs = 0;
-            node->status = PB_STATUS_DONE;
-            return TRUE;
-        }
-    }
-    g_string_free(pkg_path, TRUE);
-    return FALSE;
-}
-
 /**
  * @brief The thread that builds a node. It uses a pipe to execute 'make <package>' and send all
  * its output to the logs file pbuilder_logs/<package>.logs. If there's an error, the flag build_error
@@ -146,7 +101,7 @@ gboolean pb_node_already_built(PBNode node){
  * @param data The node to be built
  * @return NULL
  */
-void pb_node_build_th(gpointer data, gpointer user_data)
+static void pb_node_build_th(gpointer data, gpointer user_data)
 {
     PBMain      pg = (PBMain)user_data;
     PBNode      node = (PBNode)data;
@@ -252,6 +207,34 @@ void pb_node_build_th(gpointer data, gpointer user_data)
 }
 
 /**
+ * @brief Create pool of threads. Each thread builds one package at a time.
+ * The size of the pool is the "cpu" command line argument or the max number
+ * of available cores
+ * @param pbg Main struct
+ * @return PB_OK if successful, PB_FAIL otherwise
+ */
+static PBResult pb_th_init_pool(PBMain pbg)
+{
+    GError  *th_err;
+
+    if (!pbg)
+        return PB_FAIL;
+
+    /* Create a non-exclusive pool */
+    pbg->th_pool = g_thread_pool_new(pb_node_build_th, pbg, pbg->cpu_num, FALSE, NULL);
+    if (!pbg->th_pool)
+        return PB_FAIL;
+
+    if(g_thread_pool_set_max_threads(pbg->th_pool, pbg->cpu_num, &th_err) != TRUE) {
+        pb_log(LOG_ERR, "%s(): Failed to set max number of threads for the pool", __func__);
+        g_thread_pool_free(pbg->th_pool, TRUE, FALSE);
+        return PB_FAIL;
+    }
+
+    return PB_OK;
+}
+
+/**
  * @brief For each priority move across the graph and build the nodes that belong to the current priority.
  * Assign a CPU core to a single node that has to be built and when it finishes go to the next node and
  * so on until there are no more nodes with the that priority.
@@ -267,6 +250,11 @@ PBResult pb_graph_exec(PBMain pg)
 
     if (!pg)
         return PB_FAIL;
+
+    if (pb_th_init_pool(pg) != PB_OK) {
+        pb_log(PB_ERR, "Failed to init thread pool");
+        return PB_FAIL;
+    }
 
     /* Create path where the output will be writen: ${CONFIG_DIR}/pbuilder_logs/<package>.log */
     logs = g_string_new(NULL);
@@ -326,7 +314,7 @@ PBResult pb_graph_exec(PBMain pg)
                     pg->build_error = TRUE;
                     break;
                 }
-                node->status = PB_STATUS_BUILDING;
+                node->status = PB_STATUS_PROCESSING;
                 num_threads_available--;
             }
         }
