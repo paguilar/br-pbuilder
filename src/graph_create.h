@@ -17,7 +17,7 @@ typedef struct pbuilder_node_name_in_graph_st * PBNodeName;
 
 /**
  * Aux struct used for passing parameters while linking
- * parents to childs nodes during the graph creation
+ * parents to children nodes during the graph creation
  */
 struct pbuilder_node_name_in_graph_st
 {

@@ -76,9 +76,7 @@ typedef enum
     PB_ERR
 } PBLogType;
 
-void        pb_print_ok(gchar *, ...);
-void        pb_print_warn(gchar *, ...);
-void        pb_print_err(gchar *, ...);
+GString *   elapsed_time_nice_output(gdouble);
 void        pb_log(PBLogType, gchar *, ...);
 void        pb_debug(guint, gchar *, gchar *, ...);
 

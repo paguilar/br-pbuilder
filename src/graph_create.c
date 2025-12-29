@@ -22,8 +22,8 @@ void pb_node_free(gpointer data)
     if (node->parents_str)
         g_strfreev(node->parents_str);
 
-    if (node->childs)
-        g_list_free(node->childs);
+    if (node->children)
+        g_list_free(node->children);
 
     if (node->parents)
         g_list_free(node->parents);
@@ -52,8 +52,8 @@ void pb_graph_print(gpointer data, gpointer user_data)
     printf("\tPriority: %d\n", node->priority);
     printf("\tParents: ");
     g_list_foreach(node->parents, pb_graph_print_node_name, NULL);
-    printf("\n\tChilds: ");
-    g_list_foreach(node->childs, pb_graph_print_node_name, NULL);
+    printf("\n\tChildren: ");
+    g_list_foreach(node->children, pb_graph_print_node_name, NULL);
     printf("\n");
 }
 
@@ -122,7 +122,7 @@ static void pb_grandson_calc_prio(gpointer data, gpointer user_data)
 }
 
 /**
- * @brief Move recursively through the graph using the childs list and
+ * @brief Move recursively through the graph using the children list and
  * calculate each node priority using its parents list
  * @param node A child node
  */
@@ -133,9 +133,9 @@ PBResult pb_node_calc_prio(PBNode node)
 
     pb_debug(3, DBG_CREATE, "%s(): Processing '%s'\n", __func__, node->name->str);
 
-    g_list_foreach(node->childs, pb_child_calc_prio, node);
+    g_list_foreach(node->children, pb_child_calc_prio, node);
 
-    g_list_foreach(node->childs, pb_grandson_calc_prio, node);
+    g_list_foreach(node->children, pb_grandson_calc_prio, node);
 
     return PB_OK;
 }
@@ -150,7 +150,7 @@ static PBResult pb_graph_calc_nodes_priority(GList *graph)
     if (!graph)
         return PB_FAIL;
 
-    pb_print_ok("Calculating building priorities. This may take a while...\n");
+    pb_log(PB_INFO, "Calculating building priorities. This may take a while...\n");
 
 #if 1
     if (pb_node_calc_prio(graph->data) != PB_OK) {
@@ -204,7 +204,7 @@ static PBResult pb_graph_calc_nodes_priority(GList *graph)
     return PB_OK;
 }
 
-static void pb_node_link_single_parent_to_childs(gpointer data, gpointer user_data)
+static void pb_node_link_single_parent_to_children(gpointer data, gpointer user_data)
 {
     PBNode      node = data,
                 child_node;
@@ -213,7 +213,7 @@ static void pb_node_link_single_parent_to_childs(gpointer data, gpointer user_da
 
     pb_debug(2, DBG_CREATE, "Linking parent %s to child %s\n", node->name->str, name_in_graph->name->str);
 
-    child_element = g_list_find_custom(node->childs,
+    child_element = g_list_find_custom(node->children,
         name_in_graph->name->str,
         (GCompareFunc)pb_node_name_exists);
     if (child_element)
@@ -226,18 +226,18 @@ static void pb_node_link_single_parent_to_childs(gpointer data, gpointer user_da
         return;
 
     child_node = (PBNode)child_element->data;
-    node->childs = g_list_append(node->childs, child_node);
+    node->children = g_list_append(node->children, child_node);
     return;
 }
 
 /**
  * @brief For each node in main graph and for each parent of those nodes,
- * add to the list of childs of each parent the node in the main graph.
+ * add to the list of children of each parent the node in the main graph.
  * The above two functions do the searching and linking.
  * @param data One node in the main graph
  * @param user_data The main graph
  */
-void static pb_node_link_parents_to_childs(gpointer data, gpointer user_data)
+void static pb_node_link_parents_to_children(gpointer data, gpointer user_data)
 {
     PBNode      node = data;
     PBNodeName  name_in_graph;
@@ -246,7 +246,7 @@ void static pb_node_link_parents_to_childs(gpointer data, gpointer user_data)
     name_in_graph->graph = (GList *)user_data;
     name_in_graph->name = node->name;
 
-    g_list_foreach(node->parents, pb_node_link_single_parent_to_childs, name_in_graph);
+    g_list_foreach(node->parents, pb_node_link_single_parent_to_children, name_in_graph);
 
     g_free(name_in_graph);
 }
@@ -258,7 +258,7 @@ void static pb_node_link_parents_to_childs(gpointer data, gpointer user_data)
  * @param data The node to which its parents must be linked
  * @param user_data The main graph
  */
-static void pb_node_link_childs_to_parents(gpointer data, gpointer user_data)
+static void pb_node_link_children_to_parents(gpointer data, gpointer user_data)
 {
     GList       *graph = user_data,
                 *parent_element;
@@ -297,7 +297,7 @@ static void pb_node_link_childs_to_parents(gpointer data, gpointer user_data)
 
 /**
  * @brief Create a single node and attach it to the graph. Each node represent a package.
- * Some info is calculated later and it's parents and childs are linked later.
+ * Some info is calculated later and it's parents and children are linked later.
  * @param pbg Main struct
  * @param graph The graph
  * @param node_info The node name
@@ -363,7 +363,7 @@ static GList * pb_node_create(PBMain pbg, GList *graph, gchar **node_info)
 
     node->parents_str = parents_str;
     node->parents = NULL;
-    node->childs = NULL;
+    node->children = NULL;
     node->pg = pbg;
 
     graph = g_list_append(graph, node);
@@ -375,7 +375,7 @@ static GList * pb_node_create(PBMain pbg, GList *graph, gchar **node_info)
 
 /**
  * @brief For each package in the dependencies file, create a node of the graph
- * that represents a package and link it to its parents and childs.
+ * that represents a package and link it to its parents and children.
  * @param pbg Main struct
  * @return PB_OK if successful, PB_FAIL otherwise
  */
@@ -390,7 +390,6 @@ static PBResult pb_graph_create_from_deps_file(PBMain pbg)
 
     /* Create graph's root node */
     if ((graph = pb_node_create(pbg, graph, root_node)) == NULL) {
-        pb_print_err("Failed to create root node");
         pb_log(PB_ERR, "%s(): Failed to create root node", __func__);
         return PB_FAIL;
     }
@@ -413,7 +412,6 @@ static PBResult pb_graph_create_from_deps_file(PBMain pbg)
 
         /* Create new node and its parents nodes */
         if ((graph = pb_node_create(pbg, graph, node_info)) == NULL) {
-            pb_print_err("Failed to create node '%s' or one of its parents", *node_info);
             pb_log(PB_ERR, "%s(): Failed to create node '%s' or one of its parents", __func__, *node_info);
             g_strfreev(node_info);
             return PB_FAIL;
@@ -424,13 +422,13 @@ static PBResult pb_graph_create_from_deps_file(PBMain pbg)
 
     fclose(fd);
 
-    /* Link childs to parents */
-    pb_debug(2, DBG_CREATE, "\n-----\nLink childs to parents\n-----\n");
-    g_list_foreach(graph, pb_node_link_childs_to_parents, graph);
+    /* Link children to parents */
+    pb_debug(2, DBG_CREATE, "\n-----\nLink children to parents\n-----\n");
+    g_list_foreach(graph, pb_node_link_children_to_parents, graph);
 
-    /* Link parents to childs */
-    pb_debug(2, DBG_CREATE, "\n-----\nLink parents to childs\n-----\n");
-    g_list_foreach(graph, pb_node_link_parents_to_childs, graph);
+    /* Link parents to children */
+    pb_debug(2, DBG_CREATE, "\n-----\nLink parents to children\n-----\n");
+    g_list_foreach(graph, pb_node_link_parents_to_children, graph);
 
     pbg->graph = graph;
 

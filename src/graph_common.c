@@ -19,7 +19,7 @@ PBNode pb_node_find_by_name(GList *list, gchar *str)
         PBNode node = list->data;
 
         if (!g_strcmp0(node->name->str, str)) {
-            pb_debug(3, DBG_CREATE, "Found!!!!!\n");
+            pb_debug(3, DBG_ALL, "Found!!!!!\n");
             return node;
         }
     }
@@ -38,14 +38,14 @@ gint pb_node_name_exists(gconstpointer a, gconstpointer b)
     const struct pbuilder_node_st *  node = a;
     const gchar   *str = b;
 
-    pb_debug(3, DBG_CREATE, "\t%s - %s: ", str, node->name->str);
+    pb_debug(3, DBG_ALL, "\t%s - %s: ", str, node->name->str);
 
     if (!g_strcmp0(node->name->str, str)) {
-        pb_debug(3, DBG_CREATE, "Found!!!!!\n");
+        pb_debug(3, DBG_ALL, "Found!!!!!\n");
         return 0;
     }
     else
-        pb_debug(3, DBG_CREATE, "NOT found\n");
+        pb_debug(3, DBG_ALL, "NOT found\n");
 
     return 1;
 }
@@ -90,12 +90,11 @@ PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
     if ((flog = fopen(logs->str, "a")) != NULL)
         have_logs = 1;
     else
-        pb_log(LOG_ERR, "%s(): fopen(): %s: %s", __func__, logs->str, strerror(errno));
+        pb_log(PB_ERR, "%s(): fopen(): %s: %s", __func__, logs->str, strerror(errno));
 
     fp = popen(cmd->str, "r");
     if (fp == NULL) {
-        pb_log(LOG_ERR, "%s(): Error while building '%s': %s", __func__, target, strerror(errno));
-        pb_print_err("Error while building '%s': %s\n", target, strerror(errno));
+        pb_log(PB_ERR, "Error while building '%s': %s\n", target, strerror(errno));
         target_build_failed = 1;
     }
     else {
@@ -108,8 +107,7 @@ PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
 
         ret = WEXITSTATUS(pclose(fp));
         if (ret) {
-            pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, target);
-            pb_print_err("Error while building '%s'!\nSee pbuilder_logs/%s.log\n", target, target);
+            pb_log(PB_ERR, "Error while building '%s'!\nSee pbuilder_logs/%s.log\n", target, target);
             target_build_failed = 1;
         }
     }
@@ -123,7 +121,7 @@ PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
     elapsed_time = g_timer_elapsed(timer, &elapsed_usecs);
 
     if (!target_build_failed)
-        pb_print_ok("'%s' executed in %.3f secs\n", target, elapsed_time);
+        pb_log(PB_INFO, "'%s' executed in %.3f secs\n", target, elapsed_time);
 
     g_timer_destroy(timer);
 

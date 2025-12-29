@@ -37,7 +37,7 @@ static PBResult pb_get_env(PBMain pg)
 
     pg->env->build_dir = getenv("BUILD_DIR");
     if (!pg->env->build_dir) {
-        pb_log(LOG_ERR, "%s(): Failed to get environment variable BUILD_DIR", __func__);
+        pb_log(PB_ERR, "%s(): Failed to get environment variable BUILD_DIR", __func__);
         return PB_FAIL;
     }
 
@@ -47,13 +47,13 @@ static PBResult pb_get_env(PBMain pg)
 
     pg->env->config_dir = getenv("CONFIG_DIR");
     if (!pg->env->config_dir) {
-        pb_log(LOG_ERR, "%s(): Failed to get environment variable CONFIG_DIR", __func__);
+        pb_log(PB_ERR, "%s(): Failed to get environment variable CONFIG_DIR", __func__);
         return PB_FAIL;
     }
 
     pg->env->br2_external = getenv("BR2_EXTERNAL");
     if (!pg->env->br2_external) {
-        pb_log(LOG_ERR, "%s(): Failed to get environment variable BR2_EXTERNAL", __func__);
+        pb_log(PB_ERR, "%s(): Failed to get environment variable BR2_EXTERNAL", __func__);
         return PB_FAIL;
     }
 
@@ -84,7 +84,7 @@ static PBResult pb_create_main_struct(PBMain *pbg)
         pg->cpu_num = cpu_num;
 
     if (pb_get_env(pg) != PB_OK) {
-        pb_log(PB_ERR, "Failed to get environment variables");
+        pb_log(PB_ERR, "%s(): Failed to get environment variables", __func__);
         pb_graph_free(pg);
         return PB_FAIL;
     }
@@ -108,8 +108,8 @@ int main(int argc, char *argv[])
     }
 
     if (!debug_module) {
-        debug_module = g_new0(gchar, 4);
-        g_snprintf(debug_module, 4, "all");
+        debug_module = g_new0(gchar, sizeof(DBG_ALL));
+        g_snprintf(debug_module, sizeof(DBG_ALL), DBG_ALL);
     }
 
     if (!deps_file) {

@@ -45,8 +45,7 @@ struct pbuilder_node_st
     gushort         priority;           /**< Indicates when this node has to be built */
     gchar           **parents_str;      /**< List of strings that contain the package parents */
     GList           *parents;           /**< List that points to this node's parents */
-    GList           *childs;            /**< List that points to this node's children */
-    gushort         pool_pos;           /**< Thread position in the pool that is building this node */
+    GList           *children;          /**< List that points to this node's children */
     PBMain          pg;                 /**< Pointer to the main struct */
     GTimer          *timer;             /**< Timer needed to measure the node's building time */
     gdouble         elapsed_secs;       /**< Time required to build this node */

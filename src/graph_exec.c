@@ -49,12 +49,11 @@ PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
     if ((flog = fopen(logs->str, "a")) != NULL)
         have_logs = 1;
     else
-        pb_log(LOG_ERR, "%s(): fopen(): %s: %s", __func__, logs->str, strerror(errno));
+        pb_log(PB_ERR, "%s(): fopen(): %s: %s", __func__, logs->str, strerror(errno));
 
     fp = popen(cmd->str, "r");
     if (fp == NULL) {
-        pb_log(LOG_ERR, "%s(): Error while building '%s': %s", __func__, target, strerror(errno));
-        pb_print_err("Error while building '%s': %s\n", target, strerror(errno));
+        pb_log(PB_ERR, "Error while building '%s': %s", target, strerror(errno));
         target_build_failed = 1;
     }
     else {
@@ -67,8 +66,7 @@ PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
 
         ret = WEXITSTATUS(pclose(fp));
         if (ret) {
-            pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, target);
-            pb_print_err("Error while building '%s'!\nSee pbuilder_logs/%s.log\n", target, target);
+            pb_log(PB_ERR, "Error while building '%s'!\nSee pbuilder_logs/%s.log\n", target, target);
             target_build_failed = 1;
         }
     }
@@ -82,7 +80,7 @@ PBResult pb_finalize_single_target(PBMain pg, const gchar *target)
     elapsed_time = g_timer_elapsed(timer, &elapsed_usecs);
 
     if (!target_build_failed)
-        pb_print_ok("'%s' executed in %.3f secs\n", target, elapsed_time);
+        pb_log(PB_INFO, "'%s' executed in %.3f secs\n", target, elapsed_time);
 
     g_timer_destroy(timer);
 
@@ -119,8 +117,6 @@ static void pb_node_build_th(gpointer data, gpointer user_data)
     if (!pg || !node)
         return;
 
-    pb_debug(1, DBG_EXEC, "Thread at position %d is building '%s'\n", node->pool_pos, node->name->str);
-
     node->timer = g_timer_new();
 
     /* Write output to ${CONFIG_DIR}/pbuilder_logs/<package>.log */
@@ -129,7 +125,7 @@ static void pb_node_build_th(gpointer data, gpointer user_data)
     if ((fd = fopen(logs->str, "a")) != NULL)
         have_logs = 1;
     else
-        pb_log(LOG_ERR, "%s(): fopen(): %s: %s", __func__, logs->str, strerror(errno));
+        pb_log(PB_ERR, "%s(): fopen(): %s: %s", __func__, logs->str, strerror(errno));
 
     /* Build package by calling make <package> */
     cmd = g_string_new(NULL);
@@ -140,8 +136,8 @@ static void pb_node_build_th(gpointer data, gpointer user_data)
 
     fp = popen(cmd->str, "r");
     if (fp == NULL) {
-        pb_log(LOG_ERR, "%s(): Pipe creation failed while building '%s': %s", __func__, node->name->str, strerror(errno));
-        pb_print_err("Pipe creation failed while building '%s': %s\n", node->name->str, strerror(errno));
+        pb_log(PB_ERR, "%s(): Pipe creation failed while building '%s': %s", __func__, node->name->str, strerror(errno));
+        pb_log(PB_ERR, "Pipe creation failed while building '%s': %s\n", node->name->str, strerror(errno));
 		/* TODO exit thread*/
 		pkg_build_failed = 1;
 	}
@@ -155,8 +151,7 @@ static void pb_node_build_th(gpointer data, gpointer user_data)
 
         ret = WEXITSTATUS(pclose(fp));
 		if (ret) {
-            pb_log(LOG_ERR, "%s(): Error while building '%s'", __func__, node->name->str);
-            pb_print_err("Error while building '%s'!\nSee pbuilder_logs/%s.log\n", node->name->str, node->name->str);
+            pb_log(PB_ERR, "Error while building '%s'!\nSee pbuilder_logs/%s.log\n", node->name->str, node->name->str);
             pkg_build_failed = 1;
 		}
     }
@@ -166,7 +161,7 @@ static void pb_node_build_th(gpointer data, gpointer user_data)
 
     if ((node->priority == 1) || (access(pg->br2_ext_file->str, F_OK) != 0)) {
         if ((fd = fopen(pg->br2_ext_file->str, "w")) == NULL)
-            pb_log(LOG_ERR, "%(): fopen(): %s", __func__, strerror(errno));
+            pb_log(PB_ERR, "%s(): fopen(): %s", __func__, strerror(errno));
         else
             fclose(fd);
     }
@@ -197,7 +192,7 @@ static void pb_node_build_th(gpointer data, gpointer user_data)
                 total_nodes_done++;
         }
 
-        pb_print_ok("(%.2f%%) Package '%s' built in %.3f secs\n",
+        pb_log(PB_INFO, "(%.2f%%) Package '%s' built in %.3f secs\n",
             (float)total_nodes_done / (float)g_list_length(pg->graph) * 100, node->name->str, node->elapsed_secs);
 
         g_mutex_unlock(&pg->nodes_mutex);
@@ -226,7 +221,7 @@ static PBResult pb_th_init_pool(PBMain pbg)
         return PB_FAIL;
 
     if(g_thread_pool_set_max_threads(pbg->th_pool, pbg->cpu_num, &th_err) != TRUE) {
-        pb_log(LOG_ERR, "%s(): Failed to set max number of threads for the pool", __func__);
+        pb_log(PB_ERR, "%s(): Failed to set max number of threads for the pool", __func__);
         g_thread_pool_free(pbg->th_pool, TRUE, FALSE);
         return PB_FAIL;
     }
@@ -246,7 +241,8 @@ PBResult pb_graph_exec(PBMain pg)
     GList       *list;
     PBNode      node;
     gulong      elapsed_usecs = 0;
-    GString     *logs;
+    GString     *logs,
+                *elapsed_time_str;
 
     if (!pg)
         return PB_FAIL;
@@ -269,13 +265,13 @@ PBResult pb_graph_exec(PBMain pg)
     g_string_printf(pg->br2_ext_file, "%s/%s", pg->env->config_dir, BR2_EXT_EXEC_ONCE_FILE);
     remove(pg->br2_ext_file->str);
 
-    pb_print_ok("========== Building %u packages using br-pbuilder\n", g_list_length(pg->graph));
+    pb_log(PB_INFO, "========== Building %u packages using br-pbuilder\n", g_list_length(pg->graph));
 
     pg->timer = g_timer_new();
 
     while (TRUE) {
         if (g_thread_pool_get_num_threads(pg->th_pool) > pg->cpu_num){
-            pb_print_err("Number of threads is greater than the number of CPUs. Halting build!\n");
+            pb_log(PB_ERR, "Number of threads is greater than the number of CPUs. Halting build!\n");
             pg->build_error = TRUE;
             break;
         }
@@ -295,7 +291,7 @@ PBResult pb_graph_exec(PBMain pg)
             }
 
             if (pb_node_already_built(node)){
-                pb_print_warn("Package '%s' was already built. Skipping!\n", node->name->str);
+                pb_log(PB_WARN, "Package '%s' was already built. Skipping!\n", node->name->str);
                 continue;
             }
 
@@ -310,7 +306,7 @@ PBResult pb_graph_exec(PBMain pg)
             if (dependencies_built) {
                 printf("Processing '%s'\n", node->name->str);
                 if (g_thread_pool_push(pg->th_pool, (gpointer)node, NULL) != TRUE) {
-                    pb_log(LOG_ERR, "%s(): Failed to create thread for package '%s'", __func__, node->name->str);
+                    pb_log(PB_ERR, "%s(): Failed to create thread for package '%s'", __func__, node->name->str);
                     pg->build_error = TRUE;
                     break;
                 }
@@ -320,7 +316,7 @@ PBResult pb_graph_exec(PBMain pg)
         }
 
         if (pg->build_error) {
-            pb_print_err("Halting build due to previous errors!\n");
+            pb_log(PB_ERR, "Halting build due to previous errors!\n");
             break;
         }
 
@@ -336,8 +332,7 @@ PBResult pb_graph_exec(PBMain pg)
 
     if (pg->build_error == FALSE) {
         if (pb_finalize_single_target(pg, "target-post-image") != PB_OK) {
-            pb_log(LOG_ERR, "%s(): Failed to execute 'target-post-image'", __func__);
-            pb_print_err("Failed to execute 'target-post-image'");
+            pb_log(PB_ERR, "Failed to execute 'target-post-image'");
             pg->build_error = TRUE;
         }
     }
@@ -345,18 +340,20 @@ PBResult pb_graph_exec(PBMain pg)
     g_timer_stop(pg->timer);
     pg->elapsed_secs = g_timer_elapsed(pg->timer, &elapsed_usecs);
 
-    pb_print_ok("===== Total elapsed time: %.3f\n", pg->elapsed_secs);
+    elapsed_time_str = elapsed_time_nice_output(pg->elapsed_secs);
+    pb_log(PB_INFO, "===== Total elapsed time: %s (%.3f secs)\n", elapsed_time_str->str, pg->elapsed_secs);
+    g_string_free(elapsed_time_str, TRUE);
     g_timer_destroy(pg->timer);
     pg->timer = NULL;
 
     if (pg->build_error) {
-        pb_print_err("Build failed!!!\n");
-        pb_print_err("See pbuilder_logs/<pkg>.log for further info.\n");
-        pb_print_err("The following packages gave an error:\n");
+        pb_log(PB_ERR, "Build failed!!!\n");
+        pb_log(PB_ERR, "See pbuilder_logs/<pkg>.log for further info.\n");
+        pb_log(PB_ERR, "The following packages gave an error:\n");
         for (list = pg->graph; list != NULL; list = list->next) {
             node = list->data;
             if (node->build_failed)
-                pb_print_err("%s\n", node->name->str);
+                pb_log(PB_ERR, "%s\n", node->name->str);
         }
         return PB_FAIL;
     }
