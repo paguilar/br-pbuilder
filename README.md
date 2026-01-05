@@ -1,4 +1,3 @@
-
 # br-pbuilder (A Buildroot top-level parallel builder)
 
 
@@ -81,8 +80,8 @@ the packages of the next level.
 
 ## Performance
 
-A relevant characteristic of br-pbuilder is that it doesn't use a per-package directories mechanism
-using only the global *target* and *host* directories keeping the storage footprint exactly the
+A relevant characteristic of *br-pbuilder* is that it doesn't use a per-package directories mechanism.
+It uses only the global *target* and *host* directories keeping the storage footprint exactly the
 same as with the traditional serial build.
 
 Buildroot uses *make* -jN (or the equivalent invocation for other build systems) for building in
@@ -96,7 +95,7 @@ installation, but normally only the compilation step is done in parallel, all th
 place in a serial fashion. Therefore a top-level parallel build takes special advantage when
 executing those steps at the same time for different packages.
 
-br-pbuilder has been tested in top-level parallel builds of default configurations (the *defconfigs
+*br-pbuilder* has been tested in top-level parallel builds of default configurations (the *defconfigs
 in */configs*) as well as custom configurations with br2-external trees.
 
 As the number of packages increases, as it tends to happen with custom configurations, the building
@@ -105,24 +104,26 @@ time shows a significant time decrease with respect to the default *make* and *b
 
 ## Requirements
 
-br-pbuilder is a C program and a Python script. All its requirements are also mandatory for
+*br-pbuilder* is a C program and a Python script. All its requirements are also mandatory for
 Buildroot, except the following two packages that are optional for Buildroot:
 
 - glib2
 - python (version 3)
 
-### Compatibility
 
-Currently, br-pbuilder suppports Buildroot 2022.02 or later.
+## Compatibility
+
+Currently, *br-pbuilder* suppports Buildroot 2022.02 or later.
+
 
 ## How to use it
 
 1. Download Buildroot
 
-Download Buildroot from its [official site](https://buildroot.org/).
+Download Buildroot from its [official site](https://buildroot.org/download.html).
 If it's already present in the host, skip this step.
 
-2. Download br-pbuilder
+2. Download *br-pbuilder*
 
 ```
 git clone https://github.com/paguilar/br-pbuilder.git
@@ -130,7 +131,7 @@ git clone https://github.com/paguilar/br-pbuilder.git
 
 3. Patch Buildroot
 
-Since br-pbuilder is invoked as a target from Buildroot's Makefile, the main Makefile and some
+Since *br-pbuilder* is invoked as a target from Buildroot's main Makefile, this Makefile and some
 scripts need to be patched.
 
 ```
@@ -145,10 +146,10 @@ This script will detect the Buildroot version and apply the patches correspondin
 
 4. Configure Buildroot:
 
-The Buildroot configuration remains exactly the same, nothing has been touched here. Use any of the
-configuration methods such as "make <defconfig>" or just something like "make menuconfig".
+The Buildroot configuration remains exactly the same, nothing has been touched here.
+Use any of the configuration methods, such as *make menuconfig* or *make \*_defconfig*.
 
-5. Execute br-pbuilder:
+5. Execute *br-pbuilder*:
 
 From Buildroot's build path invoke the parallel builder:
 
@@ -157,18 +158,20 @@ $ make pbuilder
 ```
 
 That's it. At this point the output of the main building steps of each package are displayed
-along with the total building time of each package and at the end the total
-building time of the whole configuration. The complete output of each package and its errors, if
-any, can be found in pbuilder_logs/<package>.log inside Buildroot's build path.
+(like when using *brmake*) along with the total building time of each package and at the end
+the total building time of the whole configuration.
+The complete output of each package and its errors, if any, can be found in
+*pbuilder_logs/\<package\>.log* inside Buildroot's build path.
 
 The *pbuilder* target executes first the python script that checks that the binary and the
 dependencies file exist. If the binary is missing, it builds it. If the dependencies file is
 missing, it creates it using the Makefile's *show-info* target.
 
-In order to increase the verbosity during the br-pbuilder execution, add the -l N cmdline arg in
-Buildroot's main *Makefile*. N is the debug level that can be [1-3].
+In order to debug and increase the verbosity during the *br-pbuilder* execution, in the *br-pbuilder*
+rule inside the main *Makefile*, add the *-l N* option to the cmdline argument where N is the debug
+level that can vary from 1 (lowest) to 3 (highest).
 
-In order to remove br-pbuilder from Buildroot, the install script can be used:
+In order to remove *br-pbuilder* from Buildroot, the install script can be used:
 
 ```
 $ cd br-pbuilder
@@ -183,12 +186,12 @@ in which the time and storage savings are greatly appreciated.
 It has also been tested against Buildroot's latest stable releases and master branch of the
 official repo.
 
-This program is not part of the offical Buildroot project. As a matter of fact, Buildroot already
-offers this functionality as an experimental feature, but the manual warns that it may not work in
-some scenarios and that has been the case before writing this program and it also requires much
-more storage space since it uses the per-package directory building option.
+This program is not part of the offical Buildroot project that already offers this functionality
+as an experimental feature, but the downsides are that it requires much more storage space since it
+uses the per-package directory option and that it may not work in some scenarios, as warned in the
+manual, that were experienced before writing this program.
 
-br-pbuilder still needs lots of testing and it may not work in some cases or could break some
+*br-pbuilder* still needs testing and it may not work in some cases or could break some
 Buildroot's rules/guidelines.
 
 Any help and bug fixes are welcome!
