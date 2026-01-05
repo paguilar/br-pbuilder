@@ -9,7 +9,7 @@ top-level parallel builds.
 
 The task is accomplished using a graph organized in levels. Each node of the graph represents a
 package to be built and each level contains all the nodes (packages) whose dependencies are nodes of
-higher level.
+higher level. A leaf node in the graph means that there are no other nodes that depend on it.
 
 The graph's root is a package that does not have any dependency on any package and this is the first
 level. The second level contains packages whose only dependency is the graph's root; the third level
@@ -74,8 +74,8 @@ Each package may have one or more dependencies and all of them must be in higher
 
 The current algorithm starts building a package as soon as all its dependencies have been built.
 Following the above example, package E is built as soon as packages C and A have been built.
-This algorithm increases the performance with respect to the original algorithm that used to
-build the packages of a given level and waited until all of them finished before starting to build
+This algorithm increases the performance with respect to the original algorithm that built
+the packages of a given level and waited until all of them finished before starting to build
 the packages of the next level.
 
 
@@ -146,7 +146,7 @@ This script will detect the Buildroot version and apply the patches correspondin
 4. Configure Buildroot:
 
 The Buildroot configuration remains exactly the same, nothing has been touched here. Use any of the
-configuration methods such as *make <defconfig>* or just something like *make menuconfig*.
+configuration methods such as "make <defconfig>" or just something like "make menuconfig".
 
 5. Execute br-pbuilder:
 
