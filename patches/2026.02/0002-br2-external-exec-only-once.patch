@@ -1,0 +1,18 @@
+diff --git a/support/scripts/br2-external b/support/scripts/br2-external
+index 641f8e18ae..42d30da4b3 100755
+--- a/support/scripts/br2-external
++++ b/support/scripts/br2-external
+@@ -34,6 +34,13 @@ main() {
+         error "Cannot create output directory '%s'\n" "${outputdir}"
+     fi
+ 
++    if [ ! -f "${outputdir}/.pbuilder-br2-external-already-executed" ]; then
++        echo "Lock file doesn't exist, execute normally" >> ${outputdir}/.pbuilder-lockfile-debug
++    else
++        echo "Lock file already exist, return" >> ${outputdir}/.pbuilder-lockfile-debug
++        return
++    fi
++
+     # Historically, BR2_EXTERNAL could also be colon-separated, so for
+     # backward compatibility, keep splitting on colons (in addition to
+     # spaces).
