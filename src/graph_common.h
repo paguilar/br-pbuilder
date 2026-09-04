@@ -16,6 +16,7 @@ typedef enum
 {
     PB_STATUS_PENDING,
     PB_STATUS_READY,
+    PB_STATUS_TO_BE_REMOVED,
     PB_STATUS_PROCESSING,
     PB_STATUS_DONE
 } PBStatus;
@@ -32,6 +33,7 @@ struct pbuilder_env_st
     gchar           *build_dir;         /**< BUILD_DIR: Mandatory */
     gchar           *config_dir;        /**< CONFIG_DIR: Mandatory */
     gchar           *br2_external;      /**< BR2_EXTERNAL: Optional */
+    gchar           *remove_pkgs;       /**< List of packages to be removed: Optional. Not a Buildroot env var */
 };
 
 /**
@@ -46,6 +48,7 @@ struct pbuilder_node_st
     gchar           **parents_str;      /**< List of strings that contain the package parents */
     GList           *parents;           /**< List that points to this node's parents */
     GList           *children;          /**< List that points to this node's children */
+    gushort         pool_pos;           /**< Thread position in the pool that is building this node */
     PBMain          pg;                 /**< Pointer to the main struct */
     GTimer          *timer;             /**< Timer needed to measure the node's building time */
     gdouble         elapsed_secs;       /**< Time required to build this node */

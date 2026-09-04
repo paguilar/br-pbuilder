@@ -9,6 +9,7 @@
 #include "graph_common.h"
 #include "graph_create.h"
 #include "graph_exec.h"
+#include "graph_remove_nodes.h"
 
 gint    debug_level;
 gchar   *debug_module;
@@ -51,9 +52,17 @@ static PBResult pb_get_env(PBMain pg)
         return PB_FAIL;
     }
 
+    /* Optional. This variable never NULL, but it can be empty is there is not a BR2 external tree */
     pg->env->br2_external = getenv("BR2_EXTERNAL");
     if (!pg->env->br2_external) {
         pb_log(PB_ERR, "%s(): Failed to get environment variable BR2_EXTERNAL", __func__);
+        return PB_FAIL;
+    }
+
+    /* Optional */
+    pg->env->remove_pkgs = getenv("REMOVE_PKGS");
+    if (pg->env->remove_pkgs && !strlen(pg->env->remove_pkgs)) {
+        pb_log(LOG_ERR, "%s(): Failed to get environment variable REMOVE_PKGS\n", __func__);
         return PB_FAIL;
     }
 
@@ -61,7 +70,10 @@ static PBResult pb_get_env(PBMain pg)
         printf("Environment variables:\n");
         printf("\tBUILD_DIR: %s\n", pg->env->build_dir);
         printf("\tCONFIG_DIR: %s\n", pg->env->config_dir);
-        printf("\tBR2_EXTERNAL: '%s'\n", pg->env->br2_external);
+        if (pg->env->br2_external)
+            printf("\tBR2_EXTERNAL: '%s'\n", pg->env->br2_external);
+        if (pg->env->remove_pkgs)
+            printf("\tREMOVE_PKGS: '%s'\n", pg->env->remove_pkgs);
     }
 
     return PB_OK;
@@ -136,12 +148,42 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+#if 0
+    if (strlen(pbg->env->remove_pkgs)) {
+        if (pb_graph_remove_nodes(pbg) != PB_OK) {
+            pb_log(PB_ERR, "Failed to remove nodes from graph");
+            pb_graph_free(pbg);
+            g_option_context_free(opt_context);
+            return EXIT_FAILURE;
+        }
+    }
+
+    /* TODO: Set node status of the nodes that were removed */
+
     if (pb_graph_exec(pbg) != PB_OK) {
         pb_log(PB_ERR, "Failed to execute graph");
         pb_graph_free(pbg);
         g_option_context_free(opt_context);
         return EXIT_FAILURE;
     }
+#else
+    if (pbg->env->remove_pkgs && strlen(pbg->env->remove_pkgs) > 0) {
+        if (pb_graph_remove_nodes(pbg) != PB_OK) {
+            pb_log(PB_ERR, "Failed to remove nodes from graph");
+            pb_graph_free(pbg);
+            g_option_context_free(opt_context);
+            return EXIT_FAILURE;
+        }
+    }
+    else {
+         if (pb_graph_exec(pbg) != PB_OK) {
+            pb_log(PB_ERR, "Failed to execute graph");
+            pb_graph_free(pbg);
+            g_option_context_free(opt_context);
+            return EXIT_FAILURE;
+        }       
+    }
+#endif
 
     g_mutex_clear(&pbg->nodes_mutex);
 

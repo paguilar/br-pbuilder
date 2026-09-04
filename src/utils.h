@@ -47,6 +47,7 @@ extern gint    cpu_num;            /**< Max number of CPU used to build */
 #define DBG_ALL         "all"
 #define DBG_CREATE      "create"
 #define DBG_EXEC        "execute"
+#define DBG_REMOVE      "remove"
 
 #define C_NORMAL        "\x1B[0m"
 #define C_RED           "\x1B[31m"
